@@ -1,0 +1,21 @@
+{
+  "incident_id": "payment-latency-001",
+  "evidence": [
+    {
+      "evidence_id": "E1",
+      "source": "metric",
+      "summary": "checkout-api p95 latency rose from 220 ms to 2100 ms between 10:05 and 10:15."
+    },
+    {
+      "evidence_id": "E2",
+      "source": "log",
+      "summary": "checkout-api logs show repeated payment service timeout errors during the incident window."
+    },
+    {
+      "evidence_id": "E3",
+      "source": "trace",
+      "summary": "sample traces spend most added latency in calls from checkout-api to payment-service."
+    }
+  ],
+  "truncated": false
+}
