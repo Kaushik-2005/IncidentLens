@@ -51,6 +51,13 @@ class ToolRegistry:
     def tool_names(self) -> set[str]:
         return set(self._tools)
 
+    def restrict_to(self, allowed_names: set[str]) -> "ToolRegistry":
+        """Return a registry containing only the explicitly allowed tools."""
+        unknown = allowed_names - self.tool_names
+        if unknown:
+            raise UnknownToolError(f"unknown tools in allowlist: {sorted(unknown)}")
+        return ToolRegistry([self._tools[name] for name in sorted(allowed_names)])
+
     def model_tool_schemas(self) -> list[dict[str, Any]]:
         return [tool.model_tool_schema() for tool in self._tools.values()]
 

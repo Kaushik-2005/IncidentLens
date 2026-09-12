@@ -185,3 +185,96 @@ The Gemini integration test is isolated in tests/test_live_gemini.py and is skip
 - Live-test follow-up: fenced bare JSON was normalized at the adapter boundary and covered by an offline regression test. The next live run passed that parsing point but hit Gemini 429 RESOURCE_EXHAUSTED after the configured retry budget; quota exhaustion is a provider/account constraint, not evidence of a diagnosis failure.
 
 - Live artifact confirmation: The Gemini 3 baseline produced a schema-valid report after 3 model calls, including 1 service-unavailable retry and 1 fixture tool call. Token metadata was available. This proves the live adapter and artifact path work; it does not prove that the high confidence causal conclusion is factually correct.
+## Module 3 - Incident-response domain and realistic telemetry
+
+### Concept and why it exists
+Telemetry signals provide complementary but non-equivalent evidence. Metrics show magnitude and timing, logs record application events, and traces localize behavior along a request path. Combining signals improves diagnosis, but correlation still does not automatically prove causation.
+
+### Mental model and small example
+For the payment latency fixture, E1 proves elevated checkout latency, E2 proves recorded payment-service timeout events, and E3 localizes added request latency to checkout-api calls to payment-service. Payment-service-side metrics matching the same time window would strengthen the hypothesis through independent corroboration, but would not alone prove causation.
+
+### Learner check
+The learner correctly explained what E3 adds beyond E1 and E2, and proposed correlated payment-service latency/error metrics as stronger independent evidence while preserving uncertainty about causation.
+
+### Correlation and time check
+The learner correctly explained that IncidentLens should correlate logs and traces using request/trace identifiers plus normalized timestamps and known clock-skew bounds. Time proximity alone is insufficient; when identity or timing cannot be established, the relationship should remain uncertain.
+
+### Evidence-layer classification check
+The learner correctly classified user-visible 5xx errors as a symptom, payment-call duration as a contributing-factor localization, and deployment-related database exhaustion as a root-cause hypothesis proposing an underlying causal chain.
+
+### Baseline and timeline check
+The learner correctly explained that a peak-only window captures correlation at one moment but not signal evolution. Multiple components may appear unhealthy simultaneously, so onset order and recovery behavior are needed to distinguish causes from cascading symptoms.
+
+### RED and USE check
+The learner correctly mapped rate, errors, and duration to RED, and database utilization, saturation, and connection errors to USE. They also identified the key evidence distinction: hypothetical investigative signals such as request rate or pool saturation must not be reported as observed because the current fixture contains only E1 latency metrics, E2 timeout logs, and E3 trace localization.
+
+### Span relationship check
+The learner correctly identified trace ID, span ID, and parent span ID as the core fields needed to establish a span relationship. Additional service/resource identity and timing fields are needed to interpret ownership and incident-window relevance.
+
+### Ground-truth leakage check
+The learner correctly identified that returning a root_cause field from the fixture loader leaks evaluator-only information into the agent context, invalidating the investigation and its measured accuracy.
+
+### Manual diagnosis exercise
+The learner completed a disciplined diagnosis of the payment latency fixture. They identified E1 as the latency symptom, E2 as recorded timeout events, and E3 as dependency-path localization. They assigned a medium-confidence payment-service degradation hypothesis, proposed a network alternative, listed missing causal/deployment/resource evidence, and suggested bounded RED/USE and change-history queries. The conclusion correctly localized degradation without claiming definitive root cause.
+### Telemetry contract design
+Implemented the first Module 3 contract increment in src/incidentlens/telemetry.py. Agent-facing records are provider-neutral, versioned, timezone-aware, and preserve original plus normalized timestamps, correlation IDs, payload, and provenance. Evaluator fixtures may contain hidden ground truth, but load_agent_fixture projects explicitly to AgentIncidentFixture and excludes hidden fields. Validation rejects naive timestamps, non-UTC normalized timestamps, inconsistent normalization, and invalid incident windows.
+
+### Fixture and edge-case increment
+Added payment_failure.json and resource_exhaustion.json with metric, log, trace, partial, and distractor-ready structures. Added deterministic records_for_trace ordering and manifest record-reference validation. Tests cover missing signal availability, partial-record warnings, out-of-order records, invalid references, and both new fixtures.
+
+
+### Module 3 build increment
+The manifest now supports load profile, fault injection, timeline events, expected evidence IDs, distractors, and affected services. The loader uses a fail-fast policy for malformed structure, while intentionally partial records preserve is_partial and validation_warnings. records_in_window returns deterministic normalized-time results and an empty list for valid windows with no records. records_for_trace groups shared trace IDs and sorts by normalized timestamp. Three standardized evaluator fixtures now cover payment failure, service latency, and database resource exhaustion; hidden ground truth remains evaluator-only.
+
+### OpenTelemetry follow-up
+The later OpenTelemetry Demo integration remains proposed. It will require a local containerized demo, collector/exporter configuration, and resources for the demo services plus telemetry backends. Recorded JSON fixtures remain the reproducible test and teaching mode even after live integration.
+- Validation confirmation: Telemetry-focused tests passed 16/16 and the complete suite passed 37 tests with 1 live test skipped by default. This confirms the new fixture, schema, correlation, partial-record, malformed-record, and empty-window behaviors under deterministic tests.
+
+- Live validation confirmation: The learner confirmed the opt-in Gemini live-case test works end to end against recorded synthetic telemetry, including report artifact generation.
+
+### Final conceptual review
+The learner passed all five Module 3 review questions. They correctly explained signal capabilities and limits, trace-ID correlation over timestamp proximity, preservation of original and normalized timestamps, ground-truth exclusion through the agent fixture projection, and the distinction between symptoms, contributing factors, and root-cause hypotheses.
+
+### Final debugging review
+The learner passed the debugging exercise by identifying timezone relabeling, implicit ground-truth projection, ambiguous inclusive window boundaries, unvalidated query bounds, and the incorrect conversion of empty evidence into a no-incident conclusion. They correctly emphasized that retrieved telemetry describes available evidence, not necessarily the complete real-world event.
+
+### Module 3 completion
+Module 3 review is complete. The learner demonstrated signal boundaries, identity-based correlation, timestamp provenance, evidence-layer distinctions, baseline/recovery reasoning, hidden-ground-truth isolation, and safe empty/partial query semantics. The implementation and tests now provide the telemetry-neutral foundation for Module 4 tool engineering.
+
+## Module 4 - Tool engineering and the observation boundary
+
+### Concept and why it exists
+A tool is a capability and authorization boundary, not merely a callable function. The model proposes a tool request, while deterministic application code validates the tool name, arguments, scope, permissions, limits, execution, and result.
+
+### Learner check
+The learner correctly assigned out-of-scope file rejection to the deterministic tool/application layer before file access, and identified resolved-root validation as necessary for path traversal and alternate path forms.
+
+### Narrow typed tool check
+The learner correctly explained why a structured metrics query is safer than arbitrary SQL: it constrains metric selection, time bounds, limits, access scope, and audit representation while reducing injection and expensive-query risk.
+
+### Bounds and truncation check
+The learner correctly explained that truncated metrics must propagate into report limitations and unknowns, constrain the claim to available data, and may reduce confidence rather than being silently ignored.
+
+### Tool error taxonomy check
+The learner correctly distinguished a successful empty result from a timeout: zero records after a completed query is known absence within scope, while a timeout means evidence availability is unknown because retrieval did not complete.
+
+### Provenance and raw evidence check
+The learner correctly explained that raw tool results are evidence while agent summaries are interpretations. Preserving raw artifacts enables citation verification, contradiction detection, re-evaluation, and auditability across later report stages.
+
+### Deterministic preprocessing check
+The learner correctly specified that trace summaries must preserve evidence identity, provenance, correlation IDs, timing, service/operation context, outcomes, relevant attributes, completeness flags, and stable raw-evidence references. They correctly separated volume reduction from causal conclusion.
+
+### Module 4 bounded metrics tool increment
+Implemented a provider-neutral TelemetryQueryResult with explicit success, partial, dependency-error, and invalid-query statuses. Result invariants prevent contradictory error/truncation/count combinations. The query_metrics tool uses typed arguments, UTC time bounds, a maximum one-hour window, a maximum result limit, and active-incident scope. It never exposes SQL, filesystem paths, or arbitrary source selectors. Empty successful results remain distinct from errors, and truncated results retain partial status.
+
+### Module 4 final conceptual review
+The learner passed the four review questions. They correctly explained tools as deterministic capability and authorization boundaries, justified typed bounded queries over arbitrary SQL, distinguished empty/partial/timeout/invalid outcomes, and explained why truncation, provenance, and raw evidence references must propagate through findings. They also articulated the request-to-claim provenance chain.
+
+### Final debugging exercise
+The learner identified seven deterministic-boundary defects in a metrics tool: missing active-incident scope, unbounded time and result limits, non-unique query IDs, uncategorized backend failures, hard-coded truncation, trusted raw rows, and missing record validation. They correctly connected each defect to scope authorization, resource bounds, auditability, semantic error handling, completeness, normalization, and evidence integrity.
+
+### Final implementation exercise
+The learner designed and validated `TelemetryQueryResult` with distinct success, partial, dependency-error, and invalid-query outcomes. They correctly explained that a successful empty result means the query completed with no matches, while a timeout leaves evidence availability unknown. The complete trace-record example preserved identity, timestamps, correlation IDs, payload, and provenance.
+
+### Module 4 status
+The core Module 4 evidence gate is satisfied: the learner explained telemetry as observation rather than automatic truth and demonstrated bounded outputs and explicit least-privilege permissions. The implemented increment is `query_metrics` over agent-projected recorded fixtures plus `ToolRegistry.restrict_to`. Broader log, trace, change, time-series, and critical-path tools remain scoped as future extensions.

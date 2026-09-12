@@ -1,0 +1,31 @@
+{
+  "manifest": {
+    "schema_version": "1.0",
+    "incident_id": "db-exhaustion-001",
+    "title": "Checkout database connection exhaustion",
+    "time_window": {"start": "2026-09-11T11:00:00Z", "end": "2026-09-11T11:20:00Z"},
+    "affected_services": ["checkout-api", "checkout-db"],
+    "telemetry_record_ids": ["db-metric-1", "db-log-1", "db-metric-2"]
+  },
+  "telemetry": [
+    {
+      "schema_version": "1.0", "record_id": "db-metric-1", "signal_type": "metric", "service_name": "checkout-db",
+      "timestamp": "2026-09-11T11:05:00Z", "normalized_timestamp": "2026-09-11T11:05:00Z",
+      "attributes": {"metric_name": "db.connection_pool.in_use"}, "payload": {"value": 100, "capacity": 100, "unit": "connections"},
+      "provenance": {"source_type": "fixture", "source_name": "db-exhaustion"}
+    },
+    {
+      "schema_version": "1.0", "record_id": "db-log-1", "signal_type": "log", "service_name": "checkout-api",
+      "timestamp": "2026-09-11T11:05:04Z", "normalized_timestamp": "2026-09-11T11:05:04Z", "is_partial": true,
+      "validation_warnings": ["host field was absent"], "attributes": {"level": "error"}, "payload": {"message": "timed out acquiring database connection"},
+      "provenance": {"source_type": "fixture", "source_name": "db-exhaustion"}
+    },
+    {
+      "schema_version": "1.0", "record_id": "db-metric-2", "signal_type": "metric", "service_name": "checkout-db",
+      "timestamp": "2026-09-11T11:05:02Z", "normalized_timestamp": "2026-09-11T11:05:02Z",
+      "attributes": {"metric_name": "db.connection_pool.waiters"}, "payload": {"value": 18, "unit": "requests"},
+      "provenance": {"source_type": "fixture", "source_name": "db-exhaustion"}
+    }
+  ],
+  "hidden_ground_truth": {"root_cause": "database connection pool exhaustion", "expected_evidence_ids": ["db-metric-1", "db-log-1", "db-metric-2"]}
+}

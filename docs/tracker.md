@@ -2,11 +2,11 @@
 
 ## Current position
 - Roadmap: ../roadmap.md
-- Module: 3 - Incident-response domain and realistic telemetry
+- Module: 5 - LangGraph state and deterministic orchestration
 - Phase: Orient
 - Status: In Progress
 - Mode: Guided Learning
-- Exact current task: Read the Module 3 concepts and inspect the recorded fixture before defining the telemetry-neutral schema.
+- Exact current task: Orient Module 5 on typed state, reducers, and deterministic lifecycle ownership.
 - Last completed evidence: Module 1 completed on 2026-09-10 through source review, learner explanations, project contract draft, failure-analysis review, and design record reconciliation.
 
 ## Module progress
@@ -14,8 +14,8 @@
 | --- | --- | --- | --- | --- |
 | 1 | Multi-agent foundations and project contract | Completed | Checked | Completed |
 | 2 | Gemini agent loop and single-agent baseline | Completed | Checked | Completed |
-| 3 | Incident-response domain and realistic telemetry | Not started | Not checked | Not started |
-| 4 | Tool engineering and the observation boundary | Not started | Not checked | Not started |
+| 3 | Incident-response domain and realistic telemetry | Completed | Checked | Completed |
+| 4 | Tool engineering and the observation boundary | Completed | Checked | Completed |
 | 5 | LangGraph state and deterministic orchestration | Not started | Not checked | Not started |
 | 6 | Specialization and context engineering | Not started | Not checked | Not started |
 | 7 | Coordination topologies and protocol design | Not started | Not checked | Not started |
@@ -104,3 +104,39 @@
 - Live-test isolation evidence: Added tests/test_live_gemini.py with the live marker and RUN_LIVE_GEMINI=1 opt-in guard. Default validation observed 20 passed and 1 skipped, with no Gemini call from the live test.
 - Live test follow-up: the adapter fence-normalization regression test passed. An opt-in live run reached the provider and then ended after bounded retries with sanitized provider failure classification for quota exhaustion (429); no live artifact was produced.
 - Correction from learner-provided live artifact: Gemini 3 live baseline completed successfully after 3 model calls, 1 retry, and 1 tool call. Artifact: artifacts/baseline-payment-latency-001.json. It recorded 979 input tokens, 627 output tokens, and 1606 total tokens. The report is schema-valid and evidence-linked; factual root-cause verification remains outside Module 2.
+- Module 3 knowledge check: Learner correctly distinguished metric symptom evidence, log event evidence, and trace localization. They proposed matching payment-service metrics as independent corroboration while explicitly rejecting automatic causal proof.
+- Module 3 correlation check: Learner correctly prioritized request/trace IDs and timestamp normalization over proximity-only matching, and required uncertain relationships when clock skew or identity cannot be explained.
+- Module 3 classification check: Learner correctly separated symptom, contributing-factor localization, and root-cause hypothesis.
+- Module 3 timeline check: Learner correctly explained why peak-only analysis can confuse simultaneous symptoms with causal signals and why signal evolution matters.
+- Module 3 RED/USE check: Learner correctly classified service request signals and database resource signals, and distinguished available fixture evidence from useful but unobserved investigative queries.
+- Module 3 span check: Learner correctly identified trace, span, and parent-span identifiers; service identity and timing were added as interpretation requirements.
+- Module 3 ground-truth check: Learner correctly identified that exposing root-cause labels through the fixture loader creates ground-truth leakage and invalidates evaluation.
+- Module 3 manual diagnosis exercise: Completed successfully. Learner separated observations, inferences, hypotheses, competing explanations, missing evidence, and next bounded investigations without leaking or assuming ground truth.
+- Module 3 build evidence: Added src/incidentlens/telemetry.py and tests/test_telemetry.py. Implemented versioned provider-neutral telemetry and manifest contracts, deterministic UTC consistency checks, evaluator/agent fixture projection, and ground-truth sentinel tests. Validation observed 27 passed, 1 skipped; Ruff check and format check passed. Module remains in progress pending additional fixtures and correlation/timestamp edge cases.
+
+- Module 3 fixture increment: Added fixtures/incidents/payment_failure.json and fixtures/incidents/resource_exhaustion.json. Added tests for fixture loading, missing signals, partial records, out-of-order trace records, and manifest references. Validation observed 33 passed, 1 skipped; Ruff check and format check passed.
+
+- Module 3 completion update: Manifest enrichment, standardized service-latency fixture, fail-fast malformed-record policy, trace/log correlation coverage, deterministic ordering, and empty-window behavior are implemented. Validation observed 37 passed, 1 skipped; Ruff check and format check passed. Remaining gate is learner review, not core implementation.
+- Validation confirmation: Learner ran `python -m pytest tests\test_telemetry.py -q` with 16 passed and `python -m pytest -q` with 37 passed, 1 skipped. Module 3 implementation validation is passing; review gate remains.
+
+- Live validation confirmation: Learner ran the opt-in Gemini test successfully against the synthetic incident fixture. Live model invocation, tool execution, retry metadata, schema-valid report generation, and artifact persistence are operational.
+
+- Module 3 final conceptual review: Passed. Learner accurately explained telemetry signal boundaries, identity-based correlation, timestamp provenance/normalization, ground-truth leakage prevention, and symptom/contributor/hypothesis distinctions.
+
+- Module 3 debugging review: Passed. Learner identified five defects involving timezone conversion, ground-truth boundaries, temporal semantics, timestamp validation, and uncertainty handling for empty evidence.
+
+- Module 4 capability-boundary check: Passed. Learner correctly explained that the deterministic tool/application layer must reject an out-of-scope path before access and validate resolved paths against the allowed fixture root.
+
+- Module 4 narrow-tool check: Passed. Learner correctly justified typed metric queries over arbitrary SQL using least privilege, bounded resource use, injection resistance, data isolation, and auditability.
+
+- Module 4 bounds check: Passed. Learner correctly explained truncation propagation, incomplete coverage, confidence impact, and avoidance of conclusions assuming full telemetry.
+
+- Module 4 error-taxonomy check: Passed. Learner correctly separated completed empty results from timeout uncertainty and rejected treating retrieval failure as evidence absence.
+
+- Module 4 provenance check: Passed. Learner correctly justified preserving raw tool results separately from agent summaries for citation verification, contradiction detection, re-evaluation, and auditability.
+
+- Module 4 preprocessing check: Passed. Learner correctly defined provenance-preserving trace-summary requirements and distinguished deterministic compression from root-cause inference.
+
+- Module 4 build/validation evidence: Added TelemetryQueryResult invariants and a bounded query_metrics tool in src/incidentlens/telemetry_tools.py. It validates UTC windows and limits, scopes queries to the active fixture, returns success/partial/invalid-query results, and preserves structured telemetry records. Added tests/test_telemetry_tools.py. Validation observed 44 passed, 1 skipped; Ruff check and format check passed.
+
+- Module 4 final conceptual review: Passed. Learner correctly explained capability boundaries, narrow typed queries, structured error semantics, and propagation of truncation/provenance/raw evidence through the investigation chain.

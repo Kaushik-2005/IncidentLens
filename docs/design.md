@@ -13,7 +13,7 @@ IncidentLens is a learning project for designing, implementing, evaluating, and 
 - Keep lifecycle transitions, authorization, validation, budgets, and human approval in deterministic application code.
 
 ## Current architecture snapshot
-- Roadmap module and implementation status: Module 2 completed. A local, testable single-agent loop boundary exists with a scripted model client, Pydantic contracts, a fixture-backed read-only tool, and focused tests. The Gemini/LangChain adapter boundary is implemented and tested offline; live reachability and signed-message replay were exercised, but live final-report parsing remains unsuccessful.
+- Roadmap module and implementation status: Module 4 core gate completed; Module 3 completed; Module 2 completed. A local, testable single-agent loop boundary exists with a scripted model client, Pydantic contracts, a fixture-backed read-only tool, and focused tests. The Gemini/LangChain adapter boundary is implemented and tested offline; live reachability and signed-message replay were exercised, but live final-report parsing and baseline artifact persistence were verified.
 
 ### Component and agent summary
 Implemented Module 2 components:
@@ -21,6 +21,7 @@ Implemented Module 2 components:
 - `src/incidentlens/tools.py`: fixture-backed read-only tool and tool registry.
 - `src/incidentlens/agent_loop.py`: deterministic loop runner that calls a model client, validates model responses, executes validated tools, stores observations, propagates permitted tool execution failures, and enforces max-step termination.
 - `src/incidentlens/config.py`: settings boundary for Gemini model name, API key, max steps, retry count, and retry timing.
+- src/incidentlens/telemetry.py: versioned provider-neutral telemetry and manifest contracts with evaluator-to-agent projection.
 - `fixtures/incidents/payment_latency.json`: small synthetic fixture.
 - `tests/test_agent_loop.py`: focused tests for happy path, unknown tools, malformed args, max-step termination, and invalid evidence references, malformed model output, and permitted tool execution errors.
 
@@ -82,8 +83,8 @@ flowchart LR
 ```
 
 ### Known limitations
-- Live Gemini/LangChain integration is reachable and signed-message replay works, but the bounded retry run ended with schema-invalid model output before a final report.
-- No live baseline artifact with provider token usage or cost capture exists yet; offline baseline artifacts are implemented.
+- Live Gemini/LangChain integration, signed-message replay, retry handling, schema validation, and baseline artifact persistence were verified against synthetic telemetry.
+- Cost estimation and live telemetry backends are not implemented; the live synthetic baseline artifact is available.
 - No persistence, evaluation harness, or observability exists yet.
 - Git metadata is not available in the current directory.
 
@@ -236,3 +237,38 @@ The adapter now accepts an optional Markdown JSON fence and a bare report-shaped
 
 #### Live artifact correction
 The learner-provided artifacts/baseline-payment-latency-001.json confirms successful Gemini 3 baseline termination: 3 model calls, 1 retry, 1 tool call, and captured token usage. Earlier notes describing live parsing as unsuccessful are historical and superseded for the current status. Factual grounding verification remains a later-module concern.
+### Module 3 - Incident-response domain and realistic telemetry
+- Status: In Progress
+
+#### What changed
+Added src/incidentlens/telemetry.py with TelemetryRecord, provenance, incident manifest, evaluator fixture, and agent fixture contracts. Added explicit evaluator-to-agent projection and tests for timezone consistency, invalid windows, malformed timestamps, and hidden-ground-truth sentinel exclusion.
+
+#### Ownership and boundary decisions
+The loader owns JSON parsing and evaluator-to-agent projection. Pydantic contracts own structural and timestamp invariants. The evaluator may retain hidden ground truth; agent-facing models cannot represent it.
+
+#### Known limitations after this module
+Only one synthetic telemetry record is covered by the new schema. Signal-specific payload validation, correlation checks across records, malformed-record collection policy, and additional incident fixtures remain to be implemented.
+
+#### Fixture and correlation increment
+Added payment_failure.json and resource_exhaustion.json as synthetic evaluator fixtures. Fixture contracts now validate unique telemetry IDs and manifest references. records_for_trace provides deterministic normalized-time ordering, while partial records retain warnings. Cross-record causal interpretation and malformed-record collection policy remain future work.
+
+
+#### Module 3 completion update
+The manifest and fixture boundary now models load profile, fault injection, timeline, expected evidence, distractors, and hidden ground truth separately. The loader fails fast on malformed records and missing manifest references; partial records carry explicit warnings. Correlation helpers preserve trace identity and deterministic normalized-time ordering, and valid empty windows return no records. The proposed later OpenTelemetry Demo integration will require a local container runtime, demo service resources, an OpenTelemetry Collector, and compatible metrics/log/trace backends; recorded fixtures remain mandatory for reproducibility.
+#### Live validation confirmation
+The opt-in Gemini test now verifies end-to-end execution over the recorded synthetic fixture: provider invocation, tool observation exchange, bounded retries, schema validation, and baseline artifact persistence.
+
+#### Module 3 completion
+Module 3 completed after conceptual review, debugging analysis, manual diagnosis, telemetry-contract implementation, three standardized synthetic fixtures, correlation and time-window tests, and ground-truth boundary validation. Module 4 will extend these records behind bounded, least-privilege telemetry tools.
+
+### Module 4 bounded metrics tool increment
+- Status: In Progress
+
+Added src/incidentlens/telemetry_tools.py with typed MetricsQueryArgs and an active-fixture-scoped query_metrics tool. TelemetryQueryResult distinguishes successful empty results, partial/truncated results, invalid requests, and dependency errors. The registry validates arguments and results; the handler performs only bounded read-only fixture access. Tests cover time and limit boundaries, cross-incident rejection, truncation, empty results, malformed arguments, and result invariants.
+
+### Module 4 tool-boundary completion update
+The metrics tool is now an explicit read-only capability over the active agent-facing fixture. `MetricsQueryArgs` owns typed metric selection, UTC-aware time bounds, a one-hour maximum window, and a bounded result limit. `MetricsFixtureStore` owns active incident-scope enforcement, deterministic query identity, half-open time filtering, and truncation. `TelemetryQueryResult` owns semantic result invariants so successful empty, partial, invalid, and dependency-error outcomes cannot be conflated. `ToolRegistry.restrict_to` provides explicit per-agent allowlists and rejects unknown tools before execution.
+
+This increment deliberately keeps the model-facing surface provider-neutral and excludes SQL, file paths, arbitrary source selectors, and hidden ground truth. Raw telemetry remains distinct from downstream findings; a tool result is an observation with provenance and completeness metadata, not a proven causal conclusion.
+
+Verification: `python -m pytest -q` passed 45 tests with 1 live test skipped before the final import assertion fix; the final validation command is recorded in the tracker. Broader `search_logs`, `search_traces`, `get_trace`, `list_changes`, time-series summaries, and critical-path extraction are known follow-up work.

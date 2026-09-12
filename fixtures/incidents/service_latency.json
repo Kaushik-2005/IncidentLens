@@ -1,0 +1,40 @@
+{
+  "manifest": {
+    "schema_version": "1.0",
+    "incident_id": "service-latency-001",
+    "title": "Checkout latency from payment dependency",
+    "load_profile": {"requests_per_second": 120, "route": "/checkout"},
+    "fault_injection": "payment-service response delay",
+    "timeline": [
+      {"timestamp": "2026-09-12T09:55:00Z", "description": "Normal baseline", "affected_services": ["checkout-api"]},
+      {"timestamp": "2026-09-12T10:05:00Z", "description": "Latency increase begins", "affected_services": ["checkout-api", "payment-service"]},
+      {"timestamp": "2026-09-12T10:15:00Z", "description": "Timeouts begin recovering", "affected_services": ["checkout-api"]}
+    ],
+    "time_window": {"start": "2026-09-12T10:00:00Z", "end": "2026-09-12T10:20:00Z"},
+    "affected_services": ["checkout-api", "payment-service"],
+    "telemetry_record_ids": ["sl-metric-1", "sl-log-1", "sl-trace-1"],
+    "expected_evidence_ids": ["sl-metric-1", "sl-log-1", "sl-trace-1"],
+    "distractors": ["checkout-api CPU rose slightly but stayed below saturation"]
+  },
+  "telemetry": [
+    {
+      "schema_version": "1.0", "record_id": "sl-metric-1", "signal_type": "metric", "service_name": "checkout-api",
+      "timestamp": "2026-09-12T10:05:00Z", "normalized_timestamp": "2026-09-12T10:05:00Z",
+      "attributes": {"metric_name": "http.server.duration.p95"}, "payload": {"value": 2100, "baseline": 220, "unit": "ms"},
+      "provenance": {"source_type": "fixture", "source_name": "service-latency"}
+    },
+    {
+      "schema_version": "1.0", "record_id": "sl-log-1", "signal_type": "log", "service_name": "checkout-api",
+      "timestamp": "2026-09-12T10:05:02Z", "normalized_timestamp": "2026-09-12T10:05:02Z", "trace_id": "sl-trace-a",
+      "attributes": {"level": "error"}, "payload": {"message": "payment-service request timed out"},
+      "provenance": {"source_type": "fixture", "source_name": "service-latency"}
+    },
+    {
+      "schema_version": "1.0", "record_id": "sl-trace-1", "signal_type": "trace", "service_name": "payment-service",
+      "timestamp": "2026-09-12T10:05:01Z", "normalized_timestamp": "2026-09-12T10:05:01Z", "trace_id": "sl-trace-a", "span_id": "sl-span-a", "parent_span_id": "sl-span-root",
+      "attributes": {"peer.service": "payment-service"}, "payload": {"duration_ms": 3200, "status": "error"},
+      "provenance": {"source_type": "fixture", "source_name": "service-latency"}
+    }
+  ],
+  "hidden_ground_truth": {"root_cause": "payment-service response delay", "expected_evidence_ids": ["sl-metric-1", "sl-log-1", "sl-trace-1"]}
+}
