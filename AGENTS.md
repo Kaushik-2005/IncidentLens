@@ -216,6 +216,8 @@ Design maintenance rules:
 - Keep raw telemetry, agent observations, evidence, hypotheses, and final conclusions conceptually distinct.
 - Do not claim an agent is useful merely because it has a different name or prompt. Record its distinct context, tools, permissions, or responsibility.
 - Use Mermaid only when it materially clarifies topology, ownership, branching, or sequence. Keep diagrams compact and synchronized with implemented code.
+- Add or update at least one synchronized Mermaid diagram in `docs/design.md` for each completed module; label proposed or deferred components explicitly.
+- Structure each module design entry with the reference style: Goal, Design change, Diagram/Flow, Why this matters, verification, and known limitations when applicable.
 - Verification entries must name actual commands, tests, results, and evidence paths. Record unexecuted checks as unverified.
 - Record review-only modules honestly as “No runtime architecture change” when applicable.
 

@@ -2,11 +2,11 @@
 
 ## Current position
 - Roadmap: ../roadmap.md
-- Module: 5 - LangGraph state and deterministic orchestration
+- Module: 6 - Specialization and context engineering
 - Phase: Orient
 - Status: In Progress
 - Mode: Guided Learning
-- Exact current task: Orient Module 5 on typed state, reducers, and deterministic lifecycle ownership.
+- Exact current task: Orient Module 6 on defensible specialist boundaries and isolated context.
 - Last completed evidence: Module 1 completed on 2026-09-10 through source review, learner explanations, project contract draft, failure-analysis review, and design record reconciliation.
 
 ## Module progress
@@ -16,7 +16,7 @@
 | 2 | Gemini agent loop and single-agent baseline | Completed | Checked | Completed |
 | 3 | Incident-response domain and realistic telemetry | Completed | Checked | Completed |
 | 4 | Tool engineering and the observation boundary | Completed | Checked | Completed |
-| 5 | LangGraph state and deterministic orchestration | Not started | Not checked | Not started |
+| 5 | LangGraph state and deterministic orchestration | Completed | Checked | Completed |
 | 6 | Specialization and context engineering | Not started | Not checked | Not started |
 | 7 | Coordination topologies and protocol design | Not started | Not checked | Not started |
 | 8 | Parallel investigation and evidence aggregation | Not started | Not checked | Not started |
@@ -140,3 +140,42 @@
 - Module 4 build/validation evidence: Added TelemetryQueryResult invariants and a bounded query_metrics tool in src/incidentlens/telemetry_tools.py. It validates UTC windows and limits, scopes queries to the active fixture, returns success/partial/invalid-query results, and preserves structured telemetry records. Added tests/test_telemetry_tools.py. Validation observed 44 passed, 1 skipped; Ruff check and format check passed.
 
 - Module 4 final conceptual review: Passed. Learner correctly explained capability boundaries, narrow typed queries, structured error semantics, and propagation of truncation/provenance/raw evidence through the investigation chain.
+
+### Module 5 orientation evidence
+- [x] Learner explained that authoritative workflow data belongs in typed graph state rather than chat history.
+- [x] Learner assigned lifecycle transition authority to deterministic orchestration and named schema, completion-step, and evidence-reference checks.
+- [ ] Minimal state schema and legal transition table designed.
+- [ ] LangGraph implementation and transition tests completed.
+- Weak concept to preserve: evidence-reference validity is not the same as factual grounding.
+- [x] State-design exercise reviewed: typed state, legal/illegal transitions, terminal behavior, and invariants defined.
+- Remaining concept: node/edge execution and reducers, especially how state updates remain deterministic.
+- [x] Node/edge/reducer knowledge check passed: lifecycle ownership remains centralized and evidence aggregation is deterministic and deduplicating.
+
+### Module 5 state-contract implementation evidence
+- [x] Added `src/incidentlens/workflow_state.py` with typed lifecycle state and explicit transition rules.
+- [x] Added deterministic rejection for skipped, backward, and terminal transitions.
+- [x] Added completion/report and failure/error entry validation.
+- [x] Added monotonic `record_usage` updates for model/tool counters.
+- [x] Focused validation: `python -m pytest tests\\test_workflow_state.py -q` -> 9 passed; `python -m ruff check .` passed.
+- [ ] Add LangGraph graph nodes, edges, reducers, cancellation, and full lifecycle validation.
+
+### Module 5 LangGraph implementation evidence
+- [x] Added `langgraph>=1.0` and explicit lifecycle graph in `src/incidentlens/workflow_graph.py`.
+- [x] Added validation, triage, investigation, and synthesis nodes with conditional terminal routing.
+- [x] Added explicit cancellation input and sanitized synthesis failure behavior.
+- [x] Preserved deterministic transition ownership in `workflow_state.py`.
+- [x] Full validation: `python -m pytest -q` -> 58 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Inspect a graph execution and expand legal/illegal transition coverage before Module 5 completion.
+
+## Exact next session
+- Module and phase: 5 - LangGraph state and deterministic orchestration, Validate
+- File/function/section: `src/incidentlens/workflow_graph.py`; graph invocation and transition tests.
+- Next question or exercise: Explain how graph output, checkpoint state, and model messages differ.
+- Next build task: Add execution inspection and complete transition/terminal-state coverage.
+- Next validation command: `python -m pytest tests\\test_workflow_state.py tests\\test_workflow_graph.py -q`
+
+### Module 5 validation evidence
+- [x] Inspected compiled graph execution and verified node sequence: `validate -> triage -> investigate -> synthesize`.
+- [x] Covered cancellation from every active state and rejection from every terminal state.
+- [x] Full validation: `python -m pytest -q` -> 66 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Final conceptual review and failure-analysis exercise.

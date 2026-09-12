@@ -272,3 +272,79 @@ The metrics tool is now an explicit read-only capability over the active agent-f
 This increment deliberately keeps the model-facing surface provider-neutral and excludes SQL, file paths, arbitrary source selectors, and hidden ground truth. Raw telemetry remains distinct from downstream findings; a tool result is an observation with provenance and completeness metadata, not a proven causal conclusion.
 
 Verification: `python -m pytest -q` passed 45 tests with 1 live test skipped before the final import assertion fix; the final validation command is recorded in the tracker. Broader `search_logs`, `search_traces`, `get_trace`, `list_changes`, time-series summaries, and critical-path extraction are known follow-up work.
+
+### Module 5 state-contract increment
+- Status: In Progress
+
+Added `src/incidentlens/workflow_state.py` with typed lifecycle states, explicit normal/terminal transition tables, validated terminal entry rules, and monotonic usage updates. Transition ownership remains deterministic application code: models cannot directly alter lifecycle status. Terminal states clear `current_node`; completion requires an already validated `InvestigationReport`; failure requires sanitized error text. `record_usage` accepts nonnegative increments and preserves the stable incident ID.
+
+Verification: `python -m pytest tests\\test_workflow_state.py -q` passed 9 tests and `python -m ruff check .` passed. LangGraph integration, graph inspection, cancellation execution, and full lifecycle tests remain pending.
+
+### Module 5 LangGraph lifecycle increment
+- Status: In Progress
+
+Added `src/incidentlens/workflow_graph.py` and the `langgraph>=1.0` dependency. `build_incident_graph` compiles explicit `validate`, `triage`, `investigate`, and `synthesize` nodes. Conditional edges route only based on validated lifecycle state; terminal states route to `END`. Nodes call the deterministic `transition` function rather than mutating status directly. The report producer is injected so tests can substitute a controlled implementation for the probabilistic model boundary.
+
+Cancellation is represented by `cancel_requested` in graph state and checked before each active phase. Synthesis validates report structure and incident identity, then transitions to `COMPLETED`; expected factory/validation failures produce sanitized `FAILED` state. LangGraph output is treated as serialized state at the graph boundary.
+
+Verification: `python -m pytest -q` passed 58 tests with 1 live test skipped; Ruff check and format check passed. Remaining Module 5 work: inspect graph execution, expand every legal/illegal transition test, and reconcile the final design before completion.
+
+### Module 5 graph validation increment
+Added graph execution inspection in `tests/test_workflow_graph.py` using LangGraph update streaming. The observed node sequence is `validate -> triage -> investigate -> synthesize`; cancellation and synthesis failure terminate without continuing to later nodes. State tests now cover cancellation from every active state and rejection from every terminal state.
+
+Verification: `python -m pytest -q` passed 66 tests with 1 skipped; Ruff check and format check passed. Module completion remains pending the final conceptual review and failure-analysis exercise.
+
+### Module 5 completion
+- Status: Completed
+
+Module 5 establishes the implemented workflow boundary: `IncidentGraphState` is authoritative typed state; `workflow_state.py` owns lifecycle transitions and counter updates; `workflow_graph.py` owns LangGraph node/edge composition and terminal routing. The report producer is injected at the synthesis boundary, while deterministic code validates report structure and incident identity before completion. Graph messages are not the raw telemetry database; state carries bounded references and serialized outputs.
+
+The implementation currently uses a linear lifecycle graph with explicit cancellation and failure handling. Parallel specialist branches, reducers for concurrent findings, persistence, and checkpoint recovery are intentionally deferred to later modules where their coordination semantics are introduced.
+
+## Module 5 Diagrams
+
+### Lifecycle state ownership
+
+```mermaid
+stateDiagram-v2
+    [*] --> CREATED
+    CREATED --> TRIAGING: validate
+    TRIAGING --> INVESTIGATING: triage
+    INVESTIGATING --> SYNTHESIZING: investigate
+    SYNTHESIZING --> COMPLETED: validated report
+    CREATED --> CANCELLED: cancel requested
+    TRIAGING --> CANCELLED: cancel requested
+    INVESTIGATING --> CANCELLED: cancel requested
+    SYNTHESIZING --> CANCELLED: cancel requested
+    CREATED --> FAILED: invalid transition
+    TRIAGING --> FAILED: invalid transition
+    INVESTIGATING --> FAILED: invalid transition
+    SYNTHESIZING --> FAILED: synthesis failure
+    COMPLETED --> [*]
+    FAILED --> [*]
+    CANCELLED --> [*]
+```
+
+`workflow_state.py` owns transition legality. Completed, failed, and cancelled are terminal states.
+
+### Implemented LangGraph sequence
+
+```mermaid
+flowchart LR
+    Start((START)) --> Validate[validate]
+    Validate --> Triage[triage]
+    Triage --> Investigate[investigate]
+    Investigate --> Synthesize[synthesize]
+    Synthesize --> End((END))
+    Validate -. cancelled or failed .-> End
+    Triage -. cancelled or failed .-> End
+    Investigate -. cancelled or failed .-> End
+    Synthesize -. failed .-> End
+    State[(IncidentGraphState)] -. read/update .-> Validate
+    State -. read/update .-> Triage
+    State -. read/update .-> Investigate
+    State -. read/update .-> Synthesize
+    Transition[deterministic transition] -. validates .-> State
+```
+
+This is the current linear graph. Parallel specialist branches, reducers, and checkpoint persistence are deferred to later modules.

@@ -278,3 +278,43 @@ The learner designed and validated `TelemetryQueryResult` with distinct success,
 
 ### Module 4 status
 The core Module 4 evidence gate is satisfied: the learner explained telemetry as observation rather than automatic truth and demonstrated bounded outputs and explicit least-privilege permissions. The implemented increment is `query_metrics` over agent-projected recorded fixtures plus `ToolRegistry.restrict_to`. Broader log, trace, change, time-series, and critical-path tools remain scoped as future extensions.
+
+## Module 5 - LangGraph state and deterministic orchestration
+
+### Concept and why it exists
+Graph state is authoritative application data used for routing, validation, recovery, and terminal decisions. Conversation messages are model context, not the application database.
+
+### Learner check
+The learner correctly explained that status, model-call counts, and reports belong in typed graph state because they must be deterministic, checkpointable, and usable for routing. They correctly assigned lifecycle transition authority to the deterministic orchestrator and identified schema, required-step, and evidence-reference validation before completion. Clarification: evidence-ID existence proves reference integrity, not factual or causal support.
+
+### IncidentLens application
+The current baseline keeps observations and lifecycle control inside a local loop. Module 5 will make lifecycle state explicit and place validation, triage, investigation, synthesis, failure, cancellation, budgets, and terminal invariants in graph-owned state. Raw telemetry remains outside graph messages; state should carry bounded summaries and artifact references.
+
+### My questions, corrections, and revision items
+Next exercise: define a minimal typed investigation state and legal transition table before selecting LangGraph APIs.
+
+### State-design exercise
+The learner defined `IncidentGraphState` with stable incident identity, lifecycle status, current node, evidence references, report, counters, and sanitized errors. The transition contract correctly models forward-only normal progress, failure/cancellation from active states, and terminal states. The learner identified invalid skip, backward, and terminal transitions and added invariants for validated completion reports, monotonic counters, immutable incident identity, existing evidence artifacts, and deterministic completion authority. Terminology correction recorded: use `SYNTHESIZING`; `current_node` is execution metadata while `status` is lifecycle state.
+
+### Nodes, edges, and reducers check
+The learner correctly explained that parallel specialist nodes must not mutate shared lifecycle status because they are workers, not workflow authorities. They correctly selected deterministic deduplicating merge behavior for evidence references, producing `['E1', 'E2', 'E3']` from overlapping branch outputs.
+
+### Deterministic counter update increment
+Implemented `src/incidentlens/workflow_state.py::record_usage`. Usage updates accept only nonnegative increments, derive new totals from existing state, and preserve incident identity. Focused validation passed 9 workflow-state tests and Ruff check passed.
+
+### LangGraph lifecycle implementation
+Implemented `src/incidentlens/workflow_graph.py` using LangGraph 1.2.11. The graph has explicit validation, triage, investigation, and synthesis nodes with conditional routing to terminal states. Lifecycle transitions remain owned by `workflow_state.py`; the injected report factory represents the model/report boundary and is never allowed to choose lifecycle status. Cancellation is an explicit state input, report failures become sanitized `FAILED` state, and raw provider exceptions are not copied into graph state.
+
+Validation exposed and corrected a graph-output detail: LangGraph returns the final Pydantic state as a mapping, so consumers must treat graph output as serialized state and revalidate it at their boundary.
+
+### Graph execution and transition coverage
+Added execution inspection for the compiled graph and expanded lifecycle tests across active cancellation and terminal rejection paths. The graph emits the expected node sequence `validate -> triage -> investigate -> synthesize`, routes terminal states to `END`, and preserves deterministic transition ownership. Full validation passed 66 tests with 1 live test skipped.
+
+### Module 5 completion review pending
+Implementation evidence is complete, but the module remains pending final conceptual review and failure-analysis answers.
+
+### Module 5 final review
+The learner passed the final review. They correctly distinguished authoritative graph state from model message history, explained why raw telemetry should remain in an evidence store, assigned lifecycle ownership to deterministic orchestration, described deduplicating evidence reducers, and justified terminal routing to `END`. In the failure-analysis task, they correctly rejected `COMPLETED` with a missing report, placed validation at the transition boundary, distinguished bounded correction from unrecoverable failure, and required sanitized shared error state.
+
+### Module 5 completion
+Module 5 completed with typed lifecycle state, deterministic transitions, monotonic usage tracking, explicit LangGraph nodes and conditional edges, cancellation and failure paths, graph execution inspection, transition coverage, and final conceptual/failure-analysis review.
