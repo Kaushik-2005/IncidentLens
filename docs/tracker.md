@@ -2,11 +2,11 @@
 
 ## Current position
 - Roadmap: ../roadmap.md
-- Module: 6 - Specialization and context engineering
+- Module: 7 - Coordination topologies and protocol design
 - Phase: Orient
 - Status: In Progress
 - Mode: Guided Learning
-- Exact current task: Orient Module 6 on defensible specialist boundaries and isolated context.
+- Exact current task: Orient Module 7 on coordination patterns and explicit task/message contracts.
 - Last completed evidence: Module 1 completed on 2026-09-10 through source review, learner explanations, project contract draft, failure-analysis review, and design record reconciliation.
 
 ## Module progress
@@ -17,7 +17,7 @@
 | 3 | Incident-response domain and realistic telemetry | Completed | Checked | Completed |
 | 4 | Tool engineering and the observation boundary | Completed | Checked | Completed |
 | 5 | LangGraph state and deterministic orchestration | Completed | Checked | Completed |
-| 6 | Specialization and context engineering | Not started | Not checked | Not started |
+| 6 | Specialization and context engineering | Completed | Checked | Completed |
 | 7 | Coordination topologies and protocol design | Not started | Not checked | Not started |
 | 8 | Parallel investigation and evidence aggregation | Not started | Not checked | Not started |
 | 9 | Memory, persistence, checkpoints, and artifacts | Not started | Not checked | Not started |
@@ -179,3 +179,37 @@
 - [x] Covered cancellation from every active state and rejection from every terminal state.
 - [x] Full validation: `python -m pytest -q` -> 66 passed, 1 skipped; Ruff check and format check passed.
 - [ ] Final conceptual review and failure-analysis exercise.
+
+### Module 6 orientation evidence
+- [x] Reviewed Module 6 scope and prerequisites.
+- [ ] Justify Logs, Metrics, and Traces boundaries using distinct tools, context, outputs, or stopping rules.
+- [ ] Define versioned specialist role contracts.
+- [ ] Implement isolated specialist contexts and tool allowlists.
+- [ ] Validate role confusion, missing evidence, and context-size behavior.
+- [x] Role-boundary knowledge check passed: persona-only agents were rejected and Metrics Agent least-privilege boundaries were correctly defined.
+- Next concept: isolated context construction and prevention of cross-agent anchoring.
+- [x] Isolated-context knowledge check passed: independent Metrics Agent inputs and excluded context were correctly specified.
+- Next exercise: define versioned role contracts for Logs, Metrics, and Traces specialists.
+
+### Module 6 runtime tool evidence
+- [x] Added bounded `search_logs`, `search_traces`, and `get_trace` tools over agent-facing fixtures.
+- [x] Added separate logs, metrics, and traces registries with least-privilege tool exposure.
+- [x] Tested trace-ID retrieval, signal-domain results, invalid query scope, narrow trace filters, and unauthorized tool calls.
+- [x] Full validation: `python -m pytest -q` -> 76 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Run role-confusion and missing-evidence cases.
+- [ ] Complete Module 6 final conceptual review and failure-analysis exercise.
+
+### Module 6 role-confusion validation evidence
+- [x] Added parameterized context tests for Logs, Metrics, and Traces signal isolation.
+- [x] Added tests that peer findings and ground-truth terms are absent from specialist context.
+- [x] Added runtime registry tests for cross-domain tool rejection.
+- [x] Full validation: `python -m pytest -q` -> 81 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Run missing-evidence cases.
+- [ ] Complete Module 6 final conceptual review and failure-analysis exercise.
+
+### Module 6 missing-evidence validation evidence
+- [x] Added empty-context tests for Logs, Metrics, and Traces roles.
+- [x] Added rejection of invented evidence IDs when no evidence is available.
+- [x] Added rejection of findings with no evidence citations.
+- [x] Full validation: `python -m pytest -q` -> 86 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Complete Module 6 final conceptual review and failure-analysis exercise.

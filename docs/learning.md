@@ -318,3 +318,42 @@ The learner passed the final review. They correctly distinguished authoritative 
 
 ### Module 5 completion
 Module 5 completed with typed lifecycle state, deterministic transitions, monotonic usage tracking, explicit LangGraph nodes and conditional edges, cancellation and failure paths, graph execution inspection, transition coverage, and final conceptual/failure-analysis review.
+
+## Module 6 - Specialization and context engineering
+
+### Concept and why it exists
+A separate agent is justified by a defensible boundary, not by a different name or persona. The boundary should change the agent's objective, visible context, permitted tools, output contract, budget, or stopping rule.
+
+### IncidentLens application
+The planned Logs, Metrics, and Traces specialists should receive isolated incident briefs plus only their evidence-domain summaries and tools. The existing `ToolRegistry.restrict_to` provides the application primitive for least-privilege tool exposure. The model must not receive unrelated specialist conclusions during initial investigation, which reduces anchoring and duplicated reasoning.
+
+### My questions, corrections, and revision items
+Module 6 begins with role-boundary justification before agent implementation.
+
+### Role-boundary knowledge check
+The learner correctly rejected a skeptical persona as insufficient because disagreement is not a verification method. They defined Verification/Contradiction as a concrete responsibility: validate claims and citations, search counter-evidence, and detect unsupported causal jumps. They correctly restricted Metrics Agent access to the incident brief and metric domain while excluding logs, traces, deployments, arbitrary files/SQL, hidden ground truth, and other incidents.
+
+### Isolated-context knowledge check
+The learner correctly defined Metrics Agent input as incident scope, affected services, normalized time window, neutral incident description, and bounded metric access. They correctly excluded other agents' conclusions, non-metric telemetry, hidden ground truth/evaluator labels, arbitrary SQL/filesystem/cross-incident access, and final synthesis reports to prevent anchoring, contamination, leakage, and capability escalation.
+
+### Module 6 specialist boundary implementation
+Implemented `src/incidentlens/specialists.py` with versioned role contracts for Logs, Metrics, and Traces specialists. Each contract defines objective, domain-specific tools, signal types, budgets, output schema, and stopping rule. `SpecialistContext` is an isolated, extra-forbidden input model that filters evidence to the role's signal domain and contains no peer conclusions, hypotheses, or evaluator data. `SpecialistFinding` distinguishes observation, inference, and hypothesis claims, requires unique evidence IDs, and supports deterministic citation validation.
+
+The current implementation defines `search_logs`, `query_metrics`, `search_traces`, and `get_trace` as role capabilities, but only `query_metrics` is currently backed by a runtime tool. The other capabilities remain explicitly deferred rather than exposed as working tools.
+
+Validation: `python -m pytest -q` passed 71 tests with 1 live test skipped; Ruff check and format check passed.
+
+### Module 6 runtime tool increment
+Implemented bounded `search_logs`, `search_traces`, and `get_trace` capabilities in `src/incidentlens/telemetry_tools.py`. Each tool validates typed UTC windows and limits where applicable, enforces the active incident scope, preserves provider-neutral `TelemetryRecord` results, and returns structured query metadata. Trace retrieval uses stable trace IDs and deterministic record ordering. Focused specialist-tool tests passed 5 tests; full validation passed 76 tests with 1 live test skipped.
+
+### Role-confusion validation
+Added parameterized tests for Logs, Metrics, and Traces contexts. Each specialist now has test evidence that unrelated signal domains are excluded, peer conclusions and ground truth are absent, and runtime registries expose only declared tools. Focused tests passed 15; full validation passed 81 tests with 1 live test skipped.
+
+### Missing-evidence validation
+Added tests for empty domain context across all specialist roles. Missing telemetry remains an explicit empty observation; it does not become a health or absence claim. Findings require at least one real evidence ID, and citation validation rejects invented IDs when the available evidence set is empty. Full validation passed 86 tests with 1 live test skipped.
+
+### Module 6 final review
+The learner passed all five conceptual questions and the failure-analysis task. They correctly justified specialist separation through distinct capabilities and evidence scopes, identified anchoring and confirmation bias, handled empty/partial metrics without unsupported conclusions, separated tool permissions from signal permissions, and rejected structurally valid but ungrounded evidence citations. They correctly classified leaked logs, peer conclusions, and expected root cause as context-construction or ground-truth-isolation violations, while distinguishing unauthorized tool calls as a separate authorization failure.
+
+### Module 6 completion
+Module 6 completed with versioned Logs, Metrics, and Traces contracts, isolated context construction, least-privilege runtime registries, structured evidence-linked findings, role-confusion tests, missing-evidence tests, and final conceptual/failure-analysis review.

@@ -348,3 +348,90 @@ flowchart LR
 ```
 
 This is the current linear graph. Parallel specialist branches, reducers, and checkpoint persistence are deferred to later modules.
+
+## Module 6 - Specialization and context engineering
+
+### Goal
+Create defensible Logs, Metrics, and Traces specialist boundaries without relying on persona prompts or shared conversation history.
+
+### Design change
+- Added `src/incidentlens/specialists.py` with versioned role contracts, isolated context, structured findings, and deterministic evidence-citation validation.
+- Logs, Metrics, and Traces roles have distinct objectives, signal domains, tool policies, budgets, and stopping rules.
+- `SpecialistContext` filters evidence by role signal type and rejects unexpected fields, keeping peer conclusions and evaluator-only data outside the initial context.
+- The role contract lists future `search_logs`, `search_traces`, and `get_trace` capabilities, while the currently implemented runtime tool remains `query_metrics`.
+
+### Diagram
+
+```mermaid
+flowchart TD
+    Incident[Neutral incident brief] --> ContextBuilder[build_specialist_context]
+    ContextBuilder --> LogsContext[Logs context: log evidence only]
+    ContextBuilder --> MetricsContext[Metrics context: metric evidence only]
+    ContextBuilder --> TracesContext[Traces context: trace evidence only]
+    LogsContext --> LogsAgent[Logs Agent]
+    MetricsContext --> MetricsAgent[Metrics Agent]
+    TracesContext --> TracesAgent[Traces Agent]
+    LogsAgent --> LogsFinding[Structured finding with evidence IDs]
+    MetricsAgent --> MetricsFinding[Structured finding with evidence IDs]
+    TracesAgent --> TracesFinding[Structured finding with evidence IDs]
+    ToolPolicy[Role tool policy] -. least privilege .-> LogsAgent
+    ToolPolicy -. least privilege .-> MetricsAgent
+    ToolPolicy -. least privilege .-> TracesAgent
+    GroundTruth[(Hidden ground truth)] -. excluded .-> ContextBuilder
+    PeerReports[(Peer conclusions)] -. excluded during initial pass .-> ContextBuilder
+```
+
+### Why this matters
+Different names or personalities do not justify multiple agents. The boundary is useful because each specialist receives a different evidence domain and tool policy, while structured findings preserve evidence IDs for later aggregation and verification. This reduces context contamination and makes unauthorized access testable.
+
+### Verification
+`python -m pytest -q` passed 71 tests with 1 skipped. Tests cover role-specific tools, signal-domain filtering, extra-field rejection, unique evidence IDs, and unknown evidence citation rejection.
+
+### Known limitations
+The Logs and Traces backend tools are not implemented yet; their contracts are declared for the planned specialist surface only. Peer aggregation, specialist invocation through LangGraph, and role-confusion evaluation remain pending.
+
+### Module 6 runtime specialist tools update
+The previously declared Logs and Traces capabilities are now backed by recorded-fixture tools. `build_logs_registry` exposes only `search_logs`; `build_traces_registry` exposes only `search_traces` and `get_trace`; `build_metrics_registry` continues to expose only `query_metrics`. All three surfaces use the active agent-facing fixture, bounded typed arguments, UTC half-open windows, sanitized invalid-query results, and provider-neutral telemetry records. `get_trace` retrieves trace records by stable trace ID and preserves deterministic ordering.
+
+### Module 6 runtime tool diagram
+
+```mermaid
+flowchart TD
+    LogsPolicy[Logs role policy] --> LogsRegistry[build_logs_registry]
+    LogsRegistry --> SearchLogs[search_logs]
+    SearchLogs --> LogRecords[(log TelemetryRecords)]
+
+    MetricsPolicy[Metrics role policy] --> MetricsRegistry[build_metrics_registry]
+    MetricsRegistry --> QueryMetrics[query_metrics]
+    QueryMetrics --> MetricRecords[(metric TelemetryRecords)]
+
+    TracesPolicy[Traces role policy] --> TracesRegistry[build_traces_registry]
+    TracesRegistry --> SearchTraces[search_traces]
+    TracesRegistry --> GetTrace[get_trace]
+    SearchTraces --> TraceRecords[(trace TelemetryRecords)]
+    GetTrace --> TraceRecords
+
+    Scope[Active incident scope] -. validates .-> SearchLogs
+    Scope -. validates .-> QueryMetrics
+    Scope -. validates .-> SearchTraces
+    Scope -. validates .-> GetTrace
+```
+
+Verification: `python -m pytest -q` passed 76 tests with 1 skipped; Ruff check and format check passed. Role-confusion and missing-evidence cases, specialist model invocation, and final Module 6 review remain pending.
+
+### Module 6 role-confusion validation update
+Added parameterized role-confusion tests covering all three specialist contexts and runtime registries. Tests verify domain-only evidence, absence of peer conclusions and ground-truth terms, and rejection of cross-domain tool calls. The current role boundary is now enforced both in context construction and in separate runtime registries.
+
+Verification: `python -m pytest -q` passed 81 tests with 1 skipped; Ruff check and format check passed. Final Module 6 review and missing-evidence behavior remain pending.
+
+### Module 6 missing-evidence validation update
+Specialist contexts may be empty when the assigned signal domain has no retrieved records. `SpecialistFinding` still requires at least one evidence ID, and `validate_finding_evidence` rejects invented or unavailable IDs. This forces the agent/application boundary to represent missing evidence as uncertainty or an open question rather than silently asserting that no signal existed.
+
+Verification: `python -m pytest -q` passed 86 tests with 1 skipped; Ruff format check passed. Missing-evidence behavior is now covered for every specialist role.
+
+### Module 6 completion update
+- Status: Completed
+
+Specialization is now enforced through distinct role contracts, signal-domain filtering, isolated contexts, and separate runtime registries. The design rejects persona-only agents and keeps peer findings out of initial specialist context. Findings require unique evidence IDs and deterministic availability validation before downstream synthesis.
+
+The Logs, Metrics, and Traces boundaries are now implemented over recorded fixtures. Future modules will add specialist model invocation, aggregation, verification, and parallel execution while preserving these least-context and least-privilege boundaries.
