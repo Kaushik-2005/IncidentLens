@@ -435,3 +435,59 @@ Verification: `python -m pytest -q` passed 86 tests with 1 skipped; Ruff format 
 Specialization is now enforced through distinct role contracts, signal-domain filtering, isolated contexts, and separate runtime registries. The design rejects persona-only agents and keeps peer findings out of initial specialist context. Findings require unique evidence IDs and deterministic availability validation before downstream synthesis.
 
 The Logs, Metrics, and Traces boundaries are now implemented over recorded fixtures. Future modules will add specialist model invocation, aggregation, verification, and parallel execution while preserving these least-context and least-privilege boundaries.
+
+## Module 7 - Coordination topologies and protocol design
+
+### Goal
+Coordinate independent specialist investigations through a centralized supervisor and explicit versioned messages rather than shared conversational history or decentralized peer handoffs.
+
+### Design change
+- Added `src/incidentlens/coordination.py` with `InvestigationTask` and `SpecialistFindingMessage` contracts.
+- Task envelopes carry incident scope, specialist role, objective, time window, permitted tools and signals, evidence references, budgets, and output contract.
+- Finding messages carry task and agent identity, claim type, confidence, evidence IDs, open questions, and limitations.
+- `validate_finding_for_task` rejects stale, cross-incident, wrong-role, and out-of-scope evidence messages.
+- `FindingInbox` handles exact retries idempotently and rejects conflicting duplicate IDs.
+
+### Diagram
+
+```mermaid
+flowchart TD
+    Coordinator[Central coordinator] --> Task[InvestigationTask v1.0]
+    Task --> Logs[Logs Agent]
+    Task --> Metrics[Metrics Agent]
+    Task --> Traces[Traces Agent]
+    Logs --> Finding[SpecialistFindingMessage v1.0]
+    Metrics --> Finding
+    Traces --> Finding
+    Finding --> Validate[validate_finding_for_task]
+    Validate --> Inbox[FindingInbox]
+    Inbox --> Aggregate[Deterministic aggregation]
+    Validate -. invalid or stale .-> Reject[Reject message]
+    Inbox -. exact retry .-> Duplicate[Ignore duplicate]
+    Inbox -. conflicting ID .-> Reject
+    GroundTruth[(Hidden ground truth)] -. never included .-> Task
+    PeerHistory[(Peer conclusions)] -. withheld from initial task .-> Task
+```
+
+### Why this matters
+The centralized coordinator owns delegation, validation, duplicate handling, aggregation, and lifecycle coordination. Specialists remain independently scoped, while explicit task and finding contracts make provenance, permissions, and failure handling auditable.
+
+### Verification
+`python -m pytest -q` passed 94 tests with 1 skipped; Ruff check and format check passed. Coordination tests cover valid messages, unsupported versions, extra fields, role mismatch, evidence scope, stale tasks, exact retries, and conflicting duplicates.
+
+### Known limitations
+Pattern comparison labs and runtime coordinator routing are not yet implemented. The current inbox is in-memory; durable artifacts and parallel execution are later modules.
+
+### Module 7 coordinator and topology implementation update
+Added deterministic `build_investigation_tasks`, `InvestigationCoordinator`, and topology labs for router, handoff, and supervisor-workers patterns. Task creation derives permissions, budgets, objectives, and signal scopes from the versioned specialist contracts rather than model text. Coordinator finding intake delegates to `FindingInbox`, so stale, incompatible, out-of-scope, and conflicting duplicate messages are rejected consistently.
+
+The decision matrix records supervisor-workers as the initial IncidentLens topology. Router remains useful for narrow single-domain incidents; handoff and group-chat-like peer coordination remain less suitable for the core flow because they weaken centralized routing and increase duplicate or circular work risk.
+
+Verification: `python -m pytest -q` passed 97 tests with 1 skipped; Ruff check and format check passed.
+
+### Module 7 completion update
+- Status: Completed
+
+IncidentLens selects a centralized supervisor-workers topology. The coordinator creates versioned scoped tasks, dispatches independent specialists, validates returned findings against task ownership and evidence scope, deduplicates exact retries, rejects conflicting duplicates, and controls aggregation and later synthesis. Router and handoff remain documented pattern alternatives rather than unrestricted runtime choices.
+
+The Module 7 coordination diagram and decision matrix are now part of the architecture record. Parallel execution and reducer semantics are intentionally implemented in Module 8, while persistence and checkpoint recovery remain later concerns.

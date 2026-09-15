@@ -357,3 +357,36 @@ The learner passed all five conceptual questions and the failure-analysis task. 
 
 ### Module 6 completion
 Module 6 completed with versioned Logs, Metrics, and Traces contracts, isolated context construction, least-privilege runtime registries, structured evidence-linked findings, role-confusion tests, missing-evidence tests, and final conceptual/failure-analysis review.
+
+## Module 7 - Coordination topologies and protocol design
+
+### Concept and why it exists
+Coordination topology defines who assigns work, how agents communicate, where shared results live, and who resolves conflicts. IncidentLens should begin with a centralized coordinator and explicit specialist contracts rather than decentralized peer-to-peer coordination.
+
+### IncidentLens application
+The coordinator should issue bounded task envelopes to Logs, Metrics, and Traces specialists. Specialists should return structured findings or artifact references through typed contracts. Initial investigations remain independent; deterministic aggregation and later verification combine results. The coordinator owns routing, budgets, duplicate detection, and termination.
+
+### My questions, corrections, and revision items
+Module 7 begins with topology comparison and selection before implementing inter-agent messages.
+
+### Topology and task-envelope check
+The learner correctly selected centralized supervisor/workers coordination for IncidentLens because it preserves deterministic routing, budgets, permissions, lifecycle control, and auditability while allowing specialist independence. They correctly identified peer-to-peer risks including duplicate work, circular handoffs, uncontrolled calls, and inconsistent state. Their task envelope includes task identity, incident scope, role, neutral objective, time and service scope, tools, signal types, permitted evidence, budgets, and output contract.
+
+### Message-contract knowledge check
+The learner correctly explained that `task_id` and `agent_id` provide provenance, traceability, role enforcement, and duplicate/retry detection. They correctly treated duplicate findings as idempotent delivery rather than independent evidence and proposed a stable finding ID or task/execution key so duplicates do not inflate confidence or counts.
+
+### Module 7 coordination-contract implementation
+Implemented `src/incidentlens/coordination.py` with versioned `InvestigationTask` and `SpecialistFindingMessage` contracts. Semantic validation checks task, incident, role, and evidence scope. `FindingInbox` provides deterministic idempotency: exact retries are ignored, conflicting duplicate finding IDs are rejected, and unknown task IDs are rejected before storage.
+
+Validation: coordination tests passed 8 tests; full validation passed 94 tests with 1 live test skipped. The learner has passed topology, task-envelope, and message-contract conceptual checks; final Module 7 review remains pending.
+
+### Module 7 coordinator and topology implementation
+Implemented deterministic coordinator task creation from specialist role contracts, with incident/time/service scope and role-specific evidence references. Added small router, handoff, and supervisor-workers pattern labs plus a typed decision matrix; supervisor-workers is selected for IncidentLens because it preserves centralized routing and auditability while supporting independent specialist work. The coordinator accepts findings through `FindingInbox`, preserving semantic validation and idempotency.
+
+Validation: focused coordination tests passed 11 tests; full validation passed 97 tests with 1 live test skipped. Final Module 7 conceptual review remains pending.
+
+### Module 7 final review
+The learner passed all five conceptual questions and the failure-analysis task. They correctly justified centralized supervisor-workers coordination, distinguished task instructions from specialist findings, explained semantic validation before storage, defined exact versus conflicting duplicate handling, and kept topology under deterministic architectural control. They correctly rejected a finding with mismatched incident, role, and evidence scope before duplicate processing, and identified agent identity as an additional coordinator-owned check.
+
+### Module 7 completion
+Module 7 completed with topology comparison labs, supervisor-workers selection, versioned task/finding contracts, semantic validation, deterministic coordinator task creation, idempotent finding intake, incompatible-message tests, and final conceptual/failure-analysis review.

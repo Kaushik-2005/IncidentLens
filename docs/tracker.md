@@ -2,11 +2,11 @@
 
 ## Current position
 - Roadmap: ../roadmap.md
-- Module: 7 - Coordination topologies and protocol design
+- Module: 8 - Parallel investigation and evidence aggregation
 - Phase: Orient
 - Status: In Progress
 - Mode: Guided Learning
-- Exact current task: Orient Module 7 on coordination patterns and explicit task/message contracts.
+- Exact current task: Orient Module 8 on bounded parallel specialist execution and deterministic aggregation.
 - Last completed evidence: Module 1 completed on 2026-09-10 through source review, learner explanations, project contract draft, failure-analysis review, and design record reconciliation.
 
 ## Module progress
@@ -18,7 +18,7 @@
 | 4 | Tool engineering and the observation boundary | Completed | Checked | Completed |
 | 5 | LangGraph state and deterministic orchestration | Completed | Checked | Completed |
 | 6 | Specialization and context engineering | Completed | Checked | Completed |
-| 7 | Coordination topologies and protocol design | Not started | Not checked | Not started |
+| 7 | Coordination topologies and protocol design | Completed | Checked | Completed |
 | 8 | Parallel investigation and evidence aggregation | Not started | Not checked | Not started |
 | 9 | Memory, persistence, checkpoints, and artifacts | Not started | Not checked | Not started |
 | 10 | Planning, adaptive routing, budgets, and termination | Not started | Not checked | Not started |
@@ -213,3 +213,31 @@
 - [x] Added rejection of findings with no evidence citations.
 - [x] Full validation: `python -m pytest -q` -> 86 passed, 1 skipped; Ruff check and format check passed.
 - [ ] Complete Module 6 final conceptual review and failure-analysis exercise.
+
+### Module 7 orientation evidence
+- [x] Reviewed Module 7 scope, topology patterns, and protocol requirements.
+- [ ] Compare coordination topologies for IncidentLens.
+- [ ] Select and justify the initial production topology.
+- [ ] Define versioned task-envelope and inter-agent message contracts.
+- [ ] Test invalid, stale, duplicated, and incompatible messages.
+- [x] Topology and task-envelope knowledge check passed: centralized supervisor/workers was justified and required envelope fields were identified.
+- Next concept: versioned task and finding message contracts, including identity and duplicate handling.
+- [x] Message-contract knowledge check passed: task/agent provenance and duplicate-finding idempotency were correctly explained.
+- Next exercise: define versioned task-envelope and specialist-finding contracts.
+
+### Module 7 coordination implementation evidence
+- [x] Added versioned task-envelope and specialist-finding message contracts.
+- [x] Added semantic validation for task, incident, role, and evidence scope.
+- [x] Added idempotent `FindingInbox` for exact retries and conflicting duplicate rejection.
+- [x] Validation: `python -m pytest -q` -> 94 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Implement pattern comparison labs and coordinator routing.
+- [ ] Test incompatible messages against coordinator state.
+- [ ] Complete Module 7 final conceptual review and failure-analysis exercise.
+
+### Module 7 coordinator and topology implementation evidence
+- [x] Added deterministic specialist task creation from role contracts.
+- [x] Added `InvestigationCoordinator` with validated finding intake.
+- [x] Added router, handoff, and supervisor-workers pattern labs and decision matrix.
+- [x] Selected supervisor-workers as the initial IncidentLens topology.
+- [x] Full validation: `python -m pytest -q` -> 97 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Complete Module 7 final conceptual review and failure-analysis exercise.
