@@ -390,3 +390,25 @@ The learner passed all five conceptual questions and the failure-analysis task. 
 
 ### Module 7 completion
 Module 7 completed with topology comparison labs, supervisor-workers selection, versioned task/finding contracts, semantic validation, deterministic coordinator task creation, idempotent finding intake, incompatible-message tests, and final conceptual/failure-analysis review.
+
+### Module 8 fan-out/fan-in check
+The learner correctly explained that parallel specialist execution reduces latency and supports independent evidence gathering, while introducing races, duplicates, nondeterministic ordering, partial failures, load, and conflicting state mutation risks. They correctly handled Logs/Traces success plus Metrics timeout as a useful partial investigation: preserve successful findings, retain the timeout as unavailable evidence, and mark overall coverage incomplete without inferring metric health.
+
+### Module 8 deterministic aggregation check
+The learner correctly explained why completion order cannot define aggregate ordering: network, model, retry, and backend timing vary across runs. They identified stable ordering benefits for reproducibility, tests, serialization, deduplication, debugging, and auditability, while correctly noting that order must not imply evidentiary importance.
+
+### Module 8 parallel runner implementation
+Implemented `src/incidentlens/parallel_investigation.py` with typed branch outcomes, semaphore-bounded execution, per-branch timeouts, sanitized worker failures, cancellation classification, returned-finding validation, and stable Logs/Metrics/Traces result ordering. Replaced the skipped async test with `asyncio.run` so timeout behavior is actually executed without adding an unneeded pytest plugin.
+
+Validation: focused parallel tests passed 5 tests; full validation passed 102 tests with 1 live test skipped. Global deadline behavior, cancellation of already-running sibling tasks, and deterministic aggregate reducers remain next concerns.
+
+### Module 8 completion implementation
+Completed the parallel runner with a global investigation deadline, cancellation of unfinished branches, preservation of completed sibling results, deterministic `FindingInbox` aggregation, duplicate-finding suppression, and sequential-versus-concurrent latency comparison. The corrected async tests execute real timeout and failure behavior without relying on a missing pytest plugin.
+
+Validation: focused parallel tests passed 8 tests; full validation passed 105 tests with 1 live test skipped. Final Module 8 conceptual review and failure-analysis exercise remain pending.
+
+### Module 8 final review
+The learner passed all five conceptual questions and the failure-analysis task. They correctly explained fan-out/fan-in, stable ordering, per-branch versus global deadlines, duplicate suppression, and partial-result policy. They correctly preserved successful Logs/Traces findings, represented Metrics timeout and pending Traces work distinctly, rejected automatic global failure when a valid partial report remains possible, and stated that timeout never proves metric health or absence.
+
+### Module 8 completion
+Module 8 completed with bounded concurrent specialist execution, per-branch and global deadlines, cancellation handling, structured partial results, deterministic role-order fan-in, FindingInbox aggregation, duplicate suppression, controlled latency comparison, and final conceptual/failure-analysis review.

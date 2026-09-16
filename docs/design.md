@@ -491,3 +491,66 @@ Verification: `python -m pytest -q` passed 97 tests with 1 skipped; Ruff check a
 IncidentLens selects a centralized supervisor-workers topology. The coordinator creates versioned scoped tasks, dispatches independent specialists, validates returned findings against task ownership and evidence scope, deduplicates exact retries, rejects conflicting duplicates, and controls aggregation and later synthesis. Router and handoff remain documented pattern alternatives rather than unrestricted runtime choices.
 
 The Module 7 coordination diagram and decision matrix are now part of the architecture record. Parallel execution and reducer semantics are intentionally implemented in Module 8, while persistence and checkpoint recovery remain later concerns.
+
+### Module 8 bounded parallel execution increment
+Added `src/incidentlens/parallel_investigation.py` with `run_branch` and `run_parallel`. The runner limits concurrent admission with `asyncio.Semaphore`, bounds each worker with `asyncio.wait_for`, converts timeout/failure/cancellation into structured `SpecialistBranchResult` values, validates returned finding messages, and sorts fan-in results by fixed specialist order rather than completion order. Sibling success is preserved when one branch fails.
+
+### Module 8 parallel execution diagram
+
+```mermaid
+flowchart TD
+    Coordinator[Central coordinator] --> FanOut[run_parallel]
+    FanOut --> Limit[Semaphore: max_concurrency]
+    Limit --> Logs[Logs branch]
+    Limit --> Metrics[Metrics branch]
+    Limit --> Traces[Traces branch]
+    Logs --> TimeoutL[Per-branch timeout]
+    Metrics --> TimeoutM[Per-branch timeout]
+    Traces --> TimeoutT[Per-branch timeout]
+    TimeoutL --> Result[SpecialistBranchResult]
+    TimeoutM --> Result
+    TimeoutT --> Result
+    Result --> Sort[Stable role-order fan-in]
+    Sort --> Aggregate[Deterministic aggregate]
+    Failure[Worker failure or timeout] --> Result
+    Partial[Successful siblings preserved] --> Aggregate
+```
+
+Verification: `python -m pytest -q` passed 102 tests with 1 skipped; Ruff check and format check passed. Global investigation deadlines, cancellation propagation across siblings, duplicate finding aggregation, and sequential-vs-concurrent latency comparison remain pending.
+
+### Module 8 completion implementation update
+`run_parallel` now creates bounded branch tasks, limits concurrent admission with a semaphore, applies per-branch deadlines, and optionally applies a global investigation deadline. When the global deadline expires, unfinished branches are cancelled and represented as structured results while completed siblings are preserved. `aggregate_findings` sends successful findings through `FindingInbox`, so exact duplicate worker results do not inflate evidence or confidence and invalid findings do not enter the aggregate.
+
+### Module 8 timing and failure diagram
+
+```mermaid
+sequenceDiagram
+    participant C as Coordinator
+    participant P as run_parallel
+    participant L as Logs branch
+    participant M as Metrics branch
+    participant T as Traces branch
+    participant A as Aggregator
+
+    C->>P: dispatch bounded tasks
+    par independent branches
+        P->>L: run with branch deadline
+        P->>M: run with branch deadline
+        P->>T: run with branch deadline
+    end
+    L-->>P: success or failure result
+    M-->>P: success, timeout, or cancelled result
+    T-->>P: success or failure result
+    P->>A: stable role-ordered branch results
+    A->>A: validate and deduplicate findings
+    A-->>C: partial or complete aggregate
+```
+
+Verification: `python -m pytest -q` passed 105 tests with 1 skipped; Ruff check and format check passed. Final review remains the only Module 8 completion gate.
+
+### Module 8 completion update
+- Status: Completed
+
+IncidentLens now supports bounded fan-out/fan-in execution. `run_parallel` owns concurrency admission, branch deadlines, global deadline cancellation, and stable role ordering. `aggregate_findings` uses the coordination inbox to preserve valid findings and suppress exact duplicates without allowing branch arrival order to affect interpretation.
+
+A branch timeout or cancellation is an uncertainty-bearing result, not evidence that the signal was healthy or absent. The coordinator can continue to synthesis when successful sibling findings are sufficient for a valid partial or inconclusive report; unrecoverable workflow failures remain distinct.

@@ -2,11 +2,11 @@
 
 ## Current position
 - Roadmap: ../roadmap.md
-- Module: 8 - Parallel investigation and evidence aggregation
+- Module: 9 - Memory, persistence, checkpoints, and artifacts
 - Phase: Orient
 - Status: In Progress
 - Mode: Guided Learning
-- Exact current task: Orient Module 8 on bounded parallel specialist execution and deterministic aggregation.
+- Exact current task: Orient Module 9 on state persistence, checkpoints, artifacts, and recovery.
 - Last completed evidence: Module 1 completed on 2026-09-10 through source review, learner explanations, project contract draft, failure-analysis review, and design record reconciliation.
 
 ## Module progress
@@ -19,7 +19,7 @@
 | 5 | LangGraph state and deterministic orchestration | Completed | Checked | Completed |
 | 6 | Specialization and context engineering | Completed | Checked | Completed |
 | 7 | Coordination topologies and protocol design | Completed | Checked | Completed |
-| 8 | Parallel investigation and evidence aggregation | Not started | Not checked | Not started |
+| 8 | Parallel investigation and evidence aggregation | Completed | Checked | Completed |
 | 9 | Memory, persistence, checkpoints, and artifacts | Not started | Not checked | Not started |
 | 10 | Planning, adaptive routing, budgets, and termination | Not started | Not checked | Not started |
 | 11 | Runbook RAG and change intelligence | Not started | Not checked | Not started |
@@ -241,3 +241,29 @@
 - [x] Selected supervisor-workers as the initial IncidentLens topology.
 - [x] Full validation: `python -m pytest -q` -> 97 passed, 1 skipped; Ruff check and format check passed.
 - [ ] Complete Module 7 final conceptual review and failure-analysis exercise.
+
+### Module 8 orientation evidence
+- [x] Fan-out/fan-in knowledge check passed: benefits, risks, partial success, and timeout uncertainty were correctly explained.
+- [ ] Define bounded concurrency, per-branch deadlines, global investigation deadline, and cancellation behavior.
+- [ ] Implement concurrent specialist execution and deterministic aggregation.
+- [ ] Validate slow, failed, duplicated, and partially successful workers.
+- [x] Stable-order knowledge check passed: nondeterministic arrival was separated from deterministic aggregate representation.
+- Next exercise: implement bounded concurrent specialist execution and deterministic aggregation.
+
+### Module 8 parallel runner implementation evidence
+- [x] Repaired async test execution without skipped coroutine tests.
+- [x] Added semaphore-bounded concurrent branch execution.
+- [x] Added per-branch timeout, failure, and cancellation result classification.
+- [x] Added stable role-order fan-in and sibling-success preservation.
+- [x] Full validation: `python -m pytest -q` -> 102 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Add global investigation deadline and cancellation propagation.
+- [ ] Validate duplicated findings and deterministic aggregation.
+- [ ] Compare sequential and concurrent latency using the same scenario.
+
+### Module 8 parallel execution completion evidence
+- [x] Added global investigation deadline and cancellation of unfinished branches.
+- [x] Preserved completed sibling results after global deadline expiry.
+- [x] Added deterministic FindingInbox aggregation and duplicate-finding suppression.
+- [x] Compared sequential and concurrent execution using the same controlled worker scenario.
+- [x] Full validation: `python -m pytest -q` -> 105 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Complete Module 8 final conceptual review and failure-analysis exercise.
