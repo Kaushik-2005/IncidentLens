@@ -20,7 +20,7 @@
 | 6 | Specialization and context engineering | Completed | Checked | Completed |
 | 7 | Coordination topologies and protocol design | Completed | Checked | Completed |
 | 8 | Parallel investigation and evidence aggregation | Completed | Checked | Completed |
-| 9 | Memory, persistence, checkpoints, and artifacts | Not started | Not checked | Not started |
+| 9 | Memory, persistence, checkpoints, and artifacts | In progress | Checked | In progress |
 | 10 | Planning, adaptive routing, budgets, and termination | Not started | Not checked | Not started |
 | 11 | Runbook RAG and change intelligence | Not started | Not checked | Not started |
 | 12 | Hypothesis formation, critique, and calibrated confidence | Not started | Not checked | Not started |
@@ -267,3 +267,54 @@
 - [x] Compared sequential and concurrent execution using the same controlled worker scenario.
 - [x] Full validation: `python -m pytest -q` -> 105 passed, 1 skipped; Ruff check and format check passed.
 - [ ] Complete Module 8 final conceptual review and failure-analysis exercise.
+
+### Module 9 knowledge-check evidence
+- [x] Learner explained reuse of validated completed work during resume and distinguished thread-scoped checkpoints from cross-investigation memory.
+- [ ] Learn checkpoint commit/recovery semantics and artifact integrity.
+- [ ] Implement and validate Module 9 persistence increment.
+- Exact next task: define checkpoint contents, commit points, and recovery behavior for interrupted investigation steps.
+### Module 9 recovery exercise evidence
+- [x] Correctly handled artifact-committed/checkpoint-missing recovery using stable execution identity and reuse.
+- [x] Correctly handled artifact-missing recovery as bounded retry of incomplete work.
+- [ ] Learn artifact integrity and state-version compatibility.
+- Exact next task: define validation rules for artifact references and incompatible checkpoint versions.
+### Module 9 integrity and versioning evidence
+- [x] Correctly handled cross-incident artifact references as integrity/scope violations.
+- [x] Correctly handled unsupported checkpoint versions through deterministic migration or rejection.
+- [ ] Implement checkpoint and artifact persistence increment.
+- [ ] Validate restart, stale references, corruption, duplicate resumes, and incompatible versions.
+- Exact next task: implement a small versioned artifact store and checkpoint recovery boundary.
+### Module 9 persistence implementation evidence
+- [x] Implemented versioned artifact and checkpoint persistence contracts.
+- [x] Added focused persistence tests: 8 passed.
+- [x] Full validation: `python -m pytest -q` -> 113 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Integrate checkpoint persistence with the workflow graph and resume completed work.
+- [ ] Validate restart, stale references, corruption, duplicate resumes, and incompatible versions.
+- Exact next task: connect `CheckpointStore` to workflow execution and test truthful restart/resume behavior.
+### Module 9 checkpoint integration evidence
+- [x] Added optional LangGraph checkpointer support and controlled interrupt point.
+- [x] Demonstrated pause/resume with stable `thread_id`: focused workflow tests passed 6 tests.
+- [ ] Persist and restore evidence artifact references through graph state.
+- [ ] Validate artifact-aware resume and duplicate-resume behavior.
+- Exact next task: add durable artifact references to the state/checkpoint flow and test reuse after interruption.
+### Module 9 artifact-aware resume evidence
+- [x] Graph checkpoint resume test completed with stable `thread_id`.
+- [x] Report artifact persisted and referenced from resumed graph state.
+- [x] Focused state, graph, and persistence tests passed.
+- [ ] Validate stale artifact references, duplicate resumes, and checkpoint/artifact reconciliation failures.
+- Exact next task: add failure-focused recovery tests and retention/size-limit behavior.
+### Module 9 persistence safeguard evidence
+- [x] Added missing/stale artifact classification and checkpoint reference scope validation.
+- [x] Added configurable artifact size and count retention limits.
+- [x] Persisted report evidence artifacts and verified duplicate resume does not create duplicate files.
+- [x] Full validation: `python -m pytest -q` -> 118 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Complete Module 9 final conceptual review, failure analysis, and implementation exercise review.
+- Exact next task: perform the Module 9 final review and decide whether recovery behavior is truthful under stale references, corruption, and retention eviction.
+### Module 9 final review and completion
+- [x] Learner passed five conceptual questions covering state, checkpoints, artifacts, memory, commit ordering, stable thread IDs, and versioning.
+- [x] Learner completed the checkpoint/artifact scope failure analysis correctly.
+- [x] Implemented and validated artifact-aware checkpoint resume, duplicate-resume handling, stale/missing artifact detection, cross-incident scope rejection, corruption/version rejection, size limits, and retention limits.
+- [x] Full validation: `python -m pytest -q` -> 119 passed, 1 skipped; Ruff check and format check passed.
+- Status: Completed.
+- Known limitation: persistence is filesystem-backed and there is no separate production recovery service API yet.
+- Exact next task: begin Module 10 planning, adaptive routing, budgets, and termination.

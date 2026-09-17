@@ -1,4 +1,7 @@
+from langgraph.checkpoint.memory import InMemorySaver
+
 from incidentlens.contracts import Evidence, Hypothesis, InvestigationReport
+from incidentlens.persistence import ArtifactStore
 from incidentlens.workflow_graph import build_incident_graph
 from incidentlens.workflow_state import LifecycleStatus
 
@@ -25,6 +28,57 @@ def test_graph_runs_normal_lifecycle() -> None:
     assert result["status"] == LifecycleStatus.COMPLETED
     assert result["report"]["incident_id"] == "incident-001"
     assert result["current_node"] is None
+
+
+def test_graph_resumes_from_checkpoint_without_restarting_completed_nodes(
+    tmp_path,
+) -> None:
+    checkpointer = InMemorySaver()
+    artifact_store = ArtifactStore(tmp_path / "artifacts")
+    graph = build_incident_graph(
+        report_factory,
+        checkpointer=checkpointer,
+        interrupt_before=["investigate"],
+        artifact_store=artifact_store,
+    )
+    config = {
+        "configurable": {
+            "thread_id": "incident-001",
+        }
+    }
+
+    paused = graph.invoke(
+        {"incident_id": "incident-001"},
+        config=config,
+    )
+
+    assert paused["status"] == LifecycleStatus.INVESTIGATING
+    assert paused["current_node"] == "investigating"
+    assert paused["report"] is None
+
+    resumed = graph.invoke(None, config=config)
+
+    assert resumed["status"] == LifecycleStatus.COMPLETED
+    assert resumed["artifact_references"] == [
+        "evidence-incident-001-E1-v1",
+        "report-incident-001-v1",
+    ]
+
+    saved_report = artifact_store.load(
+        "report-incident-001-v1",
+        "incident-001",
+    )
+
+    assert saved_report.content["incident_id"] == "incident-001"
+
+    resumed_again = graph.invoke(None, config=config)
+
+    assert resumed_again["status"] == LifecycleStatus.COMPLETED
+    assert resumed_again["artifact_references"] == [
+        "evidence-incident-001-E1-v1",
+        "report-incident-001-v1",
+    ]
+    assert len(list((tmp_path / "artifacts").glob("*.json"))) == 2
 
 
 def test_graph_cancels_before_work() -> None:

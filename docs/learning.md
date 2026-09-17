@@ -412,3 +412,22 @@ The learner passed all five conceptual questions and the failure-analysis task. 
 
 ### Module 8 completion
 Module 8 completed with bounded concurrent specialist execution, per-branch and global deadlines, cancellation handling, structured partial results, deterministic role-order fan-in, FindingInbox aggregation, duplicate suppression, controlled latency comparison, and final conceptual/failure-analysis review.
+
+### Module 9 knowledge check
+The learner correctly distinguished graph state, checkpoints, artifacts, and long-term memory. They explained that resume should reuse validated completed tool results to avoid cost, inconsistent changing telemetry, duplicate evidence, and repeated side effects, while rerunning only incomplete or policy-approved work. They correctly described thread-scoped checkpoints as state for one investigation and cross-investigation memory as deliberately shared operational knowledge. Refinement: long-term memory requires explicit promotion, provenance, retention, and poisoning controls.
+### Module 9 checkpoint recovery exercise
+The learner correctly handled both crash windows. When a validated evidence artifact exists but the checkpoint is stale, recovery should reconcile the artifact using a stable task/tool execution identity and reuse it without repeating the query. When neither checkpoint completion nor artifact commit exists, the pending read may be retried under normal budget and retry policy. The distinction prevents duplicate evidence and preserves truthful recovery.
+### Module 9 artifact and versioning check
+The learner correctly required incident and execution-scope validation for artifact references, rejecting cross-incident artifacts as integrity violations. They correctly required checkpoint schema-version validation before state restoration, allowing only deterministic migration or a sanitized unsupported-version failure; unknown versions must never be guessed.
+### Module 9 persistence implementation
+Implemented `src/incidentlens/persistence.py` with versioned `StoredArtifact` and `Checkpoint` contracts. `ArtifactStore` uses stable path-safe IDs, atomic JSON replacement, exact-duplicate idempotency, conflict detection, corruption classification, and incident-scope validation. `CheckpointStore` validates persisted JSON and rejects unsupported state versions before restoration.
+
+Validation: `python -m pytest -q` passed 113 tests with 1 live test skipped; Ruff check and format check passed. LangGraph checkpointer integration, artifact references in graph state, and restart/resume orchestration remain pending.
+### Module 9 LangGraph checkpoint exercise
+Integrated an optional LangGraph checkpointer and interrupt-before configuration into `build_incident_graph`. The workflow can pause before investigation and resume with the same stable `thread_id`; focused workflow tests passed 6 tests. Durable artifact references are not yet connected to graph state.
+### Module 9 artifact-aware resume validation
+Completed the graph checkpoint exercise by resuming with the same stable thread ID and verifying that synthesis persisted a durable report artifact and added its reference to graph state. Focused state, graph, and persistence tests passed. The test validates artifact-backed resume after interruption; broader stale-reference and duplicate-resume validation remain pending.
+### Module 9 remaining persistence safeguards
+Added explicit unavailable-artifact handling, checkpoint reference validation within incident scope, configurable artifact byte and count limits, atomic checkpoint writes, durable evidence artifacts, and duplicate-resume assertions. Full validation passed 118 tests with 1 live test skipped; Ruff checks passed.
+### Module 9 final review and completion
+The learner correctly distinguished graph state, checkpoints, artifacts, and long-term memory; explained artifact-before-checkpoint commit ordering; rejected missing and cross-incident artifacts as recovery integrity failures; required stable thread IDs; and rejected unknown checkpoint versions without deterministic migration. Implementation evidence covers artifact-aware graph resume, durable evidence/report artifacts, duplicate-resume idempotency, missing/corrupt/version-invalid data, size limits, and retention. Full validation passed 119 tests with 1 live test skipped. Module 9 completed. Filesystem persistence and a dedicated recovery service boundary remain production-oriented limitations.

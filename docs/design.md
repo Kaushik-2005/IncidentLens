@@ -554,3 +554,59 @@ Verification: `python -m pytest -q` passed 105 tests with 1 skipped; Ruff check 
 IncidentLens now supports bounded fan-out/fan-in execution. `run_parallel` owns concurrency admission, branch deadlines, global deadline cancellation, and stable role ordering. `aggregate_findings` uses the coordination inbox to preserve valid findings and suppress exact duplicates without allowing branch arrival order to affect interpretation.
 
 A branch timeout or cancellation is an uncertainty-bearing result, not evidence that the signal was healthy or absent. The coordinator can continue to synthesis when successful sibling findings are sufficient for a valid partial or inconclusive report; unrecoverable workflow failures remain distinct.
+
+### Module 9 - Memory, persistence, checkpoints, and artifacts
+- Status: In Progress
+
+#### Before this module
+Workflow state and baseline reports existed, but state was not connected to a durable checkpoint/recovery boundary, and evidence/report persistence was not represented as a reusable typed artifact store.
+
+#### What changed
+Added `src/incidentlens/persistence.py` with provider-neutral, versioned `StoredArtifact` and `Checkpoint` contracts. `ArtifactStore` persists validated JSON artifacts with path-safe identities, atomic replacement, exact-duplicate idempotency, conflicting-duplicate rejection, corruption classification, and active-incident scope checks. `CheckpointStore` persists investigation snapshots and rejects unsupported state versions before restoration.
+
+#### Diagram/Flow
+```mermaid
+sequenceDiagram
+    participant G as Workflow graph
+    participant A as ArtifactStore
+    participant C as CheckpointStore
+    participant D as Disk
+
+    G->>A: persist validated evidence artifact
+    A->>D: atomic JSON write
+    A-->>G: artifact_id
+    G->>C: save state + artifact reference
+    C->>D: checkpoint JSON write
+    Note over G,C: Resume validates state version and artifact incident scope
+    G->>C: load investigation checkpoint
+    C-->>G: validated state
+    G->>A: reuse completed artifact by stable ID
+```
+
+#### Why it changed
+Recovery must distinguish validated durable work from work that was only observed in memory. Stable artifact identities close the crash window between artifact commit and checkpoint commit without duplicating evidence or repeating completed read work.
+
+#### Alternatives considered
+Copying raw telemetry into graph messages was rejected because it is large, lossy, and difficult to audit. Unrestricted cross-run memory is deferred because it introduces provenance, retention, privacy, staleness, and poisoning concerns.
+
+#### Ownership and boundary decisions
+The persistence layer owns serialization, integrity, scope, duplicate, and version checks. The workflow/orchestrator will own when a checkpoint is committed and which incomplete work may be retried. Models do not select artifact paths, incident scope, or checkpoint compatibility.
+
+#### Verification and evidence
+`tests/test_persistence.py` passed 8 tests. Full validation passed 113 tests with 1 live test skipped; Ruff check and format check passed. LangGraph integration and real interrupted-run recovery are unverified.
+
+#### Known limitations after this module
+The stores are filesystem-backed and are not yet integrated with `workflow_graph.py`. Checkpoint save/load does not yet reconcile artifact references or prevent duplicate workflow resumes.
+
+#### Next design step
+Integrate `CheckpointStore` with stable investigation/thread IDs in the graph, persist evidence/report references in graph state, and validate restart, stale-reference, duplicate-resume, and migration behavior.
+#### Module 9 checkpoint integration update
+Integrated the optional LangGraph checkpointer into `build_incident_graph` with controlled interruption and stable `thread_id` resume. Synthesis now stores a versioned report artifact through `ArtifactStore` and records its ID in `IncidentGraphState.artifact_references`. Focused tests verify pause, resume, and report artifact retrieval. Stale-reference reconciliation, duplicate resume handling, and retention limits remain unverified.
+#### Module 9 persistence safeguard update
+Added unavailable-artifact errors, reference validation against the active incident, configurable byte/count retention limits, atomic checkpoint writes, and durable evidence artifacts alongside reports. Duplicate resume now reuses versioned artifact IDs and preserves a single artifact per logical evidence/report object. Full validation passed 118 tests with 1 live test skipped; Ruff checks passed. Final conceptual review remains pending.
+### Module 9 completion update
+- Status: Completed
+
+Module 9 now has durable, versioned artifact and checkpoint foundations. Graph resume uses stable LangGraph thread IDs; synthesis stores evidence and report artifacts before returning references in graph state; duplicate resume reuses stable artifact IDs. Artifact loading enforces availability, incident scope, schema integrity, size/count limits, and checkpoint reference validation. Checkpoint loading enforces JSON/schema validity and supported state versions before restoration.
+
+Verification: `python -m pytest -q` passed 119 tests with 1 live test skipped; Ruff check and format check passed. The implementation remains filesystem-backed, and long-term memory plus a separate production recovery service are deferred.

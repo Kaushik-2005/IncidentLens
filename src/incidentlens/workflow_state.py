@@ -22,6 +22,7 @@ class IncidentGraphState(BaseModel):
     cancel_requested: bool = False
 
     evidence_references: list[str] = Field(default_factory=list)
+    artifact_references: list[str] = Field(default_factory=list)
     report: InvestigationReport | None = None
 
     model_calls: int = Field(default=0, ge=0)
