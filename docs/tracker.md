@@ -318,3 +318,51 @@
 - Status: Completed.
 - Known limitation: persistence is filesystem-backed and there is no separate production recovery service API yet.
 - Exact next task: begin Module 10 planning, adaptive routing, budgets, and termination.
+### Module 10 orientation evidence
+- [x] Reviewed the roadmap scope for static/model-generated planning, adaptive routing, follow-up limits, budgets, and termination.
+- [ ] Explain who owns planning, execution, budget enforcement, and termination.
+- [ ] Implement complexity-aware bounded task planning and one follow-up round.
+- [ ] Validate under-delegation, duplicate/excessive tasks, circular delegation, impossible requests, and budget exhaustion.
+- Exact next task: distinguish model-proposed investigation plans from deterministic coordinator authorization.
+### Module 10 planning knowledge-check evidence
+- [x] Explained static baseline versus runtime evidence-dependent follow-up.
+- [x] Kept model task proposals behind deterministic scope, permission, duplicate, and budget validation.
+- [ ] Learn budget accounting and termination policy.
+- Exact next task: define how global and per-task budgets produce partial or inconclusive reports.
+### Module 10 budget knowledge-check evidence
+- [x] Distinguished independent model/tool budgets and rejected an unexecutable follow-up before execution.
+- [x] Defined truthful partial/inconclusive reporting after budget exhaustion.
+- [ ] Define complexity-aware baseline selection and typed follow-up proposals.
+- [ ] Implement deterministic plan validation, one follow-up round, and termination enforcement.
+- Exact next task: design the plan proposal and coordinator validation contracts.
+### Module 10 follow-up contract evidence
+- [x] Defined a bounded model proposal contract separate from coordinator authorization.
+- [x] Defined deterministic follow-up validation and rejection reasons.
+- [x] Kept validation side-effect-free; budget and round state change only on scheduling.
+- [ ] Implement plan proposal and validation contracts.
+- Exact next task: add `FollowUpProposal`, validation context/result, canonical task key, and focused tests in `coordination.py`.
+### Module 10 follow-up scheduling implementation evidence
+- [x] Added deterministic scheduling from validated follow-up proposals.
+- [x] Derived tools, signal types, and task budgets from role contracts.
+- [x] Registered scheduled tasks with the finding inbox.
+- [x] Added coordinator-local duplicate protection and active-incident scope validation.
+- [x] Coordination validation: 17 passed; full validation: 125 passed, 1 skipped; Ruff checks passed.
+- [ ] Add complexity-aware baseline selection and explicit termination/budget accounting.
+- Exact next task: design the deterministic complexity policy and global budget ledger.
+### Module 10 implementation evidence
+- [x] Added deterministic simple/standard/complex incident classification and baseline role policy.
+- [x] Added global model/tool `BudgetLedger` with exhaustion checks.
+- [x] Added explicit deterministic termination decisions and reasons.
+- [x] Added bounded follow-up scheduling with role-derived permissions/budgets, task registration, duplicate protection, and incident scope validation.
+- [x] Coordination validation: 22 passed; full validation: 130 passed, 1 skipped; Ruff checks passed.
+- [ ] Complete Module 10 final conceptual review, failure analysis, and implementation exercise review.
+- Exact next task: answer final questions about planning ownership, budget exhaustion, termination, and adaptive routing.
+### Module 10 final review and completion
+- [x] Learner explained planning, execution, authorization, budget, lifecycle, and termination ownership.
+- [x] Learner explained complexity-aware specialist selection and bounded adaptive follow-up.
+- [x] Learner explained independent model/tool budgets and truthful partial reporting after exhaustion.
+- [x] Learner completed the follow-up-limit failure analysis correctly; rejected work is not executed and remains an explicit unknown.
+- [x] Implementation and validation complete: `python -m pytest -q` -> 130 passed, 1 skipped; Ruff check and format check passed.
+- Status: Completed.
+- Known limitation: follow-up dependencies are intentionally flat, so circular delegation is prevented by topology rather than modeled as a general dependency graph.
+- Exact next task: begin Module 11 on runbook retrieval, change intelligence, and citation grounding.

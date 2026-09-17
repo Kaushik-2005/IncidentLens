@@ -1,6 +1,29 @@
 from datetime import UTC, datetime
 
-from incidentlens.coordination import InvestigationTask
+import pytest
+from pydantic import ValidationError
+
+from incidentlens.coordination import (
+    BudgetLedger,
+    CoordinationPattern,
+    FindingInbox,
+    FollowUpContext,
+    FollowUpProposal,
+    IncidentComplexity,
+    InvestigationCoordinator,
+    InvestigationTask,
+    build_investigation_tasks,
+    canonical_task_key,
+    classify_incident,
+    complexity_policy,
+    evaluate_termination,
+    handoff_pattern,
+    pattern_matrix,
+    router_pattern,
+    supervisor_workers_pattern,
+    validate_finding_for_task,
+    validate_follow_up,
+)
 from incidentlens.specialists import SpecialistRole
 
 
@@ -47,15 +70,6 @@ def test_finding_message_is_typed_and_traceable() -> None:
     assert finding.message_type == "specialist_finding"
     assert finding.task_id == "task-metrics-001"
     assert finding.agent_id == "metrics-agent-1"
-
-
-import pytest
-from pydantic import ValidationError
-
-from incidentlens.coordination import (
-    FindingInbox,
-    validate_finding_for_task,
-)
 
 
 def make_task() -> InvestigationTask:
@@ -143,15 +157,6 @@ def test_task_contract_rejects_unsupported_version_and_extra_fields() -> None:
         InvestigationTask.model_validate(task.model_dump() | {"peer_conclusion": "database"})
 
 
-from incidentlens.coordination import (
-    CoordinationPattern,
-    InvestigationCoordinator,
-    build_investigation_tasks,
-    handoff_pattern,
-    pattern_matrix,
-    router_pattern,
-    supervisor_workers_pattern,
-)
 from incidentlens.telemetry import IncidentTimeWindow
 
 
@@ -200,3 +205,194 @@ def test_pattern_labs_have_distinct_execution_shapes() -> None:
     assessments = pattern_matrix()
     selected = [item.pattern for item in assessments if item.selected_for_incidentlens]
     assert selected == [CoordinationPattern.SUPERVISOR_WORKERS]
+
+
+def valid_proposal() -> FollowUpProposal:
+    return FollowUpProposal(
+        objective="Check payment-service metrics.",
+        specialist_role=SpecialistRole.METRICS,
+        evidence_gap="Payment-service health is unknown.",
+        supporting_evidence_ids=["E1"],
+    )
+
+
+def valid_follow_up_context(**overrides) -> FollowUpContext:
+    values = {
+        "known_evidence_ids": frozenset({"E1", "E2"}),
+        "allowed_roles": frozenset({SpecialistRole.METRICS}),
+        "existing_task_keys": frozenset(),
+        "follow_up_round": 0,
+        "max_follow_up_rounds": 1,
+        "remaining_tool_calls": 2,
+        "remaining_model_calls": 2,
+        "global_deadline_reached": False,
+    }
+    values.update(overrides)
+    return FollowUpContext(**values)
+
+
+def test_follow_up_validation_does_not_mutate_context() -> None:
+    context = valid_follow_up_context()
+    proposal = valid_proposal()
+
+    result = validate_follow_up(proposal, context)
+
+    assert result.accepted
+    assert context.follow_up_round == 0
+    assert context.remaining_tool_calls == 2
+    assert context.remaining_model_calls == 2
+
+
+def test_schedule_follow_up_derives_permissions_and_budget() -> None:
+    coordinator = InvestigationCoordinator([make_task()])
+    proposal = valid_proposal()
+    context = valid_follow_up_context()
+
+    task = coordinator.schedule_follow_up(
+        proposal,
+        context,
+        incident_id="incident-001",
+        time_window=make_task().time_window,
+        affected_services=["checkout-api"],
+    )
+
+    assert task.task_id == "followup-metrics_agent-incident-001-1"
+    assert task.allowed_tools == frozenset({"query_metrics"})
+    assert task.max_model_calls == 2
+    assert task.max_tool_calls == 2
+    assert coordinator.follow_up_round == 1
+    assert canonical_task_key(proposal) in coordinator.scheduled_task_keys
+
+
+def test_rejected_follow_up_does_not_schedule_or_mutate_coordinator() -> None:
+    coordinator = InvestigationCoordinator([make_task()])
+    proposal = valid_proposal()
+    context = valid_follow_up_context(remaining_tool_calls=0)
+
+    with pytest.raises(ValueError, match="TOOL_BUDGET_EXHAUSTED"):
+        coordinator.schedule_follow_up(
+            proposal,
+            context,
+            incident_id="incident-001",
+            time_window=make_task().time_window,
+            affected_services=["checkout-api"],
+        )
+
+    assert coordinator.follow_up_round == 0
+    assert coordinator.scheduled_task_keys == set()
+    assert len(coordinator.tasks) == 1
+
+
+def test_scheduled_follow_up_task_is_registered_for_findings() -> None:
+    coordinator = InvestigationCoordinator([make_task()])
+    proposal = valid_proposal()
+    task = coordinator.schedule_follow_up(
+        proposal,
+        valid_follow_up_context(),
+        incident_id="incident-001",
+        time_window=make_task().time_window,
+        affected_services=["checkout-api"],
+    )
+    finding = make_finding().model_copy(
+        update={
+            "task_id": task.task_id,
+            "finding_id": "finding-followup-001",
+            "evidence_ids": ["E1"],
+        }
+    )
+
+    assert coordinator.accept_finding(finding) is True
+
+
+def test_coordinator_rejects_duplicate_follow_up_even_with_stale_context() -> None:
+    coordinator = InvestigationCoordinator([make_task()])
+    proposal = valid_proposal()
+    context = valid_follow_up_context()
+    coordinator.schedule_follow_up(
+        proposal,
+        context,
+        incident_id="incident-001",
+        time_window=make_task().time_window,
+        affected_services=["checkout-api"],
+    )
+
+    with pytest.raises(ValueError, match="DUPLICATE_FOLLOW_UP"):
+        coordinator.schedule_follow_up(
+            proposal,
+            context,
+            incident_id="incident-001",
+            time_window=make_task().time_window,
+            affected_services=["checkout-api"],
+        )
+
+
+def test_follow_up_cannot_change_incident_scope() -> None:
+    coordinator = InvestigationCoordinator([make_task()])
+
+    with pytest.raises(ValueError, match="INCIDENT_SCOPE_MISMATCH"):
+        coordinator.schedule_follow_up(
+            valid_proposal(),
+            valid_follow_up_context(),
+            incident_id="incident-002",
+            time_window=make_task().time_window,
+            affected_services=["checkout-api"],
+        )
+
+
+def test_simple_incident_selects_bounded_baseline() -> None:
+    complexity = classify_incident(
+        affected_services=["checkout-api"],
+        evidence_by_signal={"metric": ["M1"], "log": [], "trace": []},
+    )
+
+    assert complexity == IncidentComplexity.SIMPLE
+    assert complexity_policy(complexity).baseline_roles == frozenset({SpecialistRole.METRICS})
+
+
+def test_complex_incident_selects_all_specialists() -> None:
+    complexity = classify_incident(
+        affected_services=["checkout-api", "payment-service"],
+        evidence_by_signal={"metric": ["M1"], "log": ["L1"], "trace": ["T1"]},
+    )
+
+    assert complexity == IncidentComplexity.COMPLEX
+    assert complexity_policy(complexity).baseline_roles == frozenset(SpecialistRole)
+
+
+def test_budget_ledger_rejects_exhaustion() -> None:
+    budget = BudgetLedger(max_model_calls=1, max_tool_calls=2)
+    budget.consume(model_calls=1, tool_calls=1)
+
+    with pytest.raises(ValueError, match="MODEL_BUDGET_EXHAUSTED"):
+        budget.consume(model_calls=1)
+
+    assert budget.model_calls == 1
+    assert budget.tool_calls == 1
+
+
+def test_termination_reports_budget_exhaustion() -> None:
+    decision = evaluate_termination(
+        valid_report_possible=False,
+        pending_tasks=True,
+        follow_up_round=0,
+        max_follow_up_rounds=1,
+        budget=BudgetLedger(max_model_calls=2, max_tool_calls=0),
+        deadline_reached=False,
+    )
+
+    assert decision.terminate is True
+    assert decision.reason == "budget_exhausted"
+
+
+def test_termination_continues_when_work_and_budget_remain() -> None:
+    decision = evaluate_termination(
+        valid_report_possible=False,
+        pending_tasks=True,
+        follow_up_round=0,
+        max_follow_up_rounds=1,
+        budget=BudgetLedger(max_model_calls=2, max_tool_calls=2),
+        deadline_reached=False,
+    )
+
+    assert decision.terminate is False
+    assert decision.reason == "continue_investigation"

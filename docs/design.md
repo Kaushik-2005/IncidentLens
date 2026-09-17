@@ -610,3 +610,49 @@ Added unavailable-artifact errors, reference validation against the active incid
 Module 9 now has durable, versioned artifact and checkpoint foundations. Graph resume uses stable LangGraph thread IDs; synthesis stores evidence and report artifacts before returning references in graph state; duplicate resume reuses stable artifact IDs. Artifact loading enforces availability, incident scope, schema integrity, size/count limits, and checkpoint reference validation. Checkpoint loading enforces JSON/schema validity and supported state versions before restoration.
 
 Verification: `python -m pytest -q` passed 119 tests with 1 live test skipped; Ruff check and format check passed. The implementation remains filesystem-backed, and long-term memory plus a separate production recovery service are deferred.
+### Module 10 - Planning, adaptive routing, budgets, and termination
+- Status: In Progress
+
+#### Before this module
+IncidentLens had deterministic specialist task creation, bounded parallel execution, and lifecycle ownership, but no complexity-aware planning or controlled follow-up round.
+
+#### What changed
+Module 10 orientation establishes a hybrid design: deterministic baseline decomposition plus at most one model-proposed follow-up round. The coordinator validates task scope, duplicates, dependencies, permissions, and remaining budgets before dispatch. The model cannot mutate lifecycle state or terminate the workflow directly.
+
+#### Diagram/Flow
+```mermaid
+flowchart LR
+    Brief[Incident brief] --> Base[Deterministic baseline tasks]
+    Base --> Workers[Bounded specialist execution]
+    Workers --> Gap[Evidence gap evaluation]
+    Gap -->|No justified gap| Synthesis[Synthesis]
+    Gap -->|One bounded follow-up| Proposal[Model task proposal]
+    Proposal --> Validate[Coordinator validation]
+    Validate -->|Authorized and within budget| Followup[Follow-up execution]
+    Validate -->|Rejected| Synthesis
+    Followup --> Synthesis
+    Budget[Global/per-task budgets] --> Validate
+    Budget --> Synthesis
+```
+
+#### Why it changed
+Known safety rules and budget limits should remain deterministic, while evidence-dependent follow-up decisions benefit from model reasoning. A hybrid boundary preserves adaptation without allowing plans to bypass authorization or termination controls.
+
+#### Ownership and boundary decisions
+The model proposes tasks or evidence gaps. The coordinator owns plan validation, task creation, duplicate/cycle checks, budget enforcement, dispatch, and termination. The lifecycle transition layer remains the only status authority.
+
+#### Known limitations after this module
+Implementation and validation are pending. Complexity scoring, follow-up contracts, and termination policy are currently proposed.
+
+#### Next design step
+Add typed bounded plan proposals and deterministic validation, then test under-delegation, excessive fan-out, duplicate/circular tasks, impossible evidence requests, and budget exhaustion.
+#### Module 10 follow-up scheduling implementation update
+Added coordinator-owned conversion from `FollowUpProposal` to `InvestigationTask`. Role contracts supply permissions and bounded budgets; the finding inbox registers accepted follow-up tasks; canonical coordinator fingerprints prevent duplicate scheduling; and active incident scope is checked before creation. Verification passed 125 tests with 1 live test skipped and Ruff checks. Complexity policy, global budget ledger, and final termination routing remain proposed.
+#### Module 10 implementation update
+Added deterministic complexity classification and baseline role selection, a global model/tool budget ledger, explicit termination decisions, and bounded follow-up scheduling. Model proposals remain untrusted; the coordinator validates grounding, role, scope, duplicate identity, follow-up limits, deadline, and budgets before deriving a task from role policy. Verification passed 130 tests with 1 live test skipped and Ruff checks.
+### Module 10 completion update
+- Status: Completed
+
+Module 10 established the hybrid planning boundary: deterministic complexity-based baseline selection, model-proposed evidence-gap follow-ups, coordinator validation, role-derived permissions, global budget accounting, and explicit termination reasons. A simple incident can select only the metrics specialist; broader incidents can select all available specialists. Budget exhaustion and follow-up limits produce partial/inconclusive reporting rather than unsupported conclusions.
+
+Verification: final conceptual review and failure analysis passed; `python -m pytest -q` passed 130 tests with 1 live test skipped; Ruff check and format check passed. Follow-up task dependencies remain intentionally flat and circular delegation is prevented by the centralized topology.

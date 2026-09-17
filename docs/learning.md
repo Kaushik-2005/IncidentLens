@@ -431,3 +431,51 @@ Completed the graph checkpoint exercise by resuming with the same stable thread 
 Added explicit unavailable-artifact handling, checkpoint reference validation within incident scope, configurable artifact byte and count limits, atomic checkpoint writes, durable evidence artifacts, and duplicate-resume assertions. Full validation passed 118 tests with 1 live test skipped; Ruff checks passed.
 ### Module 9 final review and completion
 The learner correctly distinguished graph state, checkpoints, artifacts, and long-term memory; explained artifact-before-checkpoint commit ordering; rejected missing and cross-incident artifacts as recovery integrity failures; required stable thread IDs; and rejected unknown checkpoint versions without deterministic migration. Implementation evidence covers artifact-aware graph resume, durable evidence/report artifacts, duplicate-resume idempotency, missing/corrupt/version-invalid data, size limits, and retention. Full validation passed 119 tests with 1 live test skipped. Module 9 completed. Filesystem persistence and a dedicated recovery service boundary remain production-oriented limitations.
+## Module 10 - Planning, adaptive routing, budgets, and termination
+
+### Concept and why it exists
+Planning determines which investigation work is worth doing, while deterministic orchestration decides what is authorized, bounded, and finished. Module 10 addresses the trade-off between gathering enough independent evidence and avoiding unnecessary agents, duplicate work, runaway follow-ups, and unbounded cost.
+
+### Mental model and small example
+The model may propose: `query metrics for payment-service` because a trace finding leaves a dependency-health gap. The coordinator validates that proposal against the active incident, role/tool permissions, duplicate-task rules, and remaining budget before dispatching it. The model proposes; application code authorizes and terminates.
+
+### Internal behavior
+A plan should be a typed set of bounded tasks with stable IDs, objectives, dependencies, and budgets. Routing should use deterministic rules for known constraints and bounded model judgment only where evidence creates a genuine information gap. Termination should check global deadlines, call/tool/token limits, follow-up-round limits, duplicate or circular tasks, and report sufficiency.
+
+### IncidentLens application
+The existing `InvestigationCoordinator` creates deterministic specialist tasks and `run_parallel` bounds execution. Module 10 adds complexity-aware selection, one bounded follow-up round, and a coordinator-owned termination decision without allowing the planner to mutate lifecycle state.
+
+### Boundaries, failure modes, and common mistakes
+A model-generated plan can under-delegate, request every specialist, repeat an existing task, create a circular dependency, or request impossible evidence. Each is a proposal-validation problem, not a reason to let the model control budgets or lifecycle transitions. Budget exhaustion should produce a partial or inconclusive report when possible, not a fabricated complete diagnosis.
+
+### Alternatives and trade-offs
+Static decomposition is predictable and cheap but may waste work on narrow incidents. Fully model-generated planning adapts to evidence but is harder to bound and audit. A hybrid approach is appropriate: deterministic baseline tasks plus at most one validated, budgeted follow-up round.
+
+### Exercise and validation observations
+Orientation started; knowledge check pending.
+
+### Interview explanation
+The coordinator owns authorized planning, execution routing, budgets, and termination. The model can identify evidence gaps and propose follow-up tasks, but deterministic code validates, deduplicates, bounds, dispatches, and decides when the investigation ends.
+
+### Sources
+- [Anthropic: How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system)
+- [LangGraph: Multi-agent workflows](https://docs.langchain.com/oss/python/langchain/multi-agent)
+
+### My questions, corrections, and revision items
+- Knowledge check pending: explain why a model plan cannot directly create unlimited tasks or end the workflow.
+### Module 10 planning ownership check
+The learner correctly explained why static planning needs bounded adaptive follow-up, why model-generated plans require deterministic validation, and why duplicate or over-budget proposals must not execute. Refinement: duplicate detection must use a coordinator-owned canonical task fingerprint over normalized scope/objective/tool parameters, not a model-supplied identity alone.
+### Module 10 budget and termination check
+The learner correctly treated model and tool budgets as separate deterministic resources. They rejected a change follow-up when the tool budget was exhausted, preserved remaining model capacity for synthesis, and required the final report to describe the skipped investigation as an unknown limitation rather than evidence that no change occurred.
+### Module 10 follow-up contract check
+The learner correctly designed a model-only `FollowUpProposal` containing an evidence gap and motivating evidence, without authorization or budget fields. They defined deterministic grounding, role, idempotency, round, budget, and deadline checks, and correctly kept validation side-effect-free until scheduling.
+### Module 10 follow-up scheduling implementation
+Implemented deterministic `InvestigationCoordinator.schedule_follow_up(...)` in `src/incidentlens/coordination.py`. Accepted model proposals are converted into scoped `InvestigationTask` objects using role-owned tools, signal types, and bounded budgets. Scheduled tasks are registered with `FindingInbox`, coordinator-local canonical task keys prevent duplicate scheduling even with stale caller context, and active incident scope is enforced before task creation.
+
+Validation: coordination tests passed 17 tests; full validation passed 125 tests with 1 live test skipped; Ruff check and format check passed. Complexity-aware baseline selection, explicit plan contracts, budget accounting across the full investigation, and deterministic termination remain pending.
+### Module 10 planning, budget, and termination implementation
+Implemented deterministic `IncidentComplexity` classification and role-selection policy, a mutable `BudgetLedger`, explicit `TerminationDecision` reasons, and coordinator-owned follow-up scheduling. Simple incidents select only metrics; broader incidents select all available specialists. Follow-up tasks are validated, scope-checked, permission-derived, budget-bounded, registered for findings, and deduplicated before scheduling.
+
+Validation: coordination tests passed 22 tests; full validation passed 130 tests with 1 live test skipped; Ruff check and format check passed. Final Module 10 conceptual review remains pending.
+### Module 10 final review and completion
+The learner correctly assigned model proposal versus deterministic coordinator ownership, justified complexity-aware specialist selection, handled independent model/tool budget exhaustion, and explained duplicate/circular follow-up risks. They correctly rejected a deployment proposal after the follow-up limit and required a truthful unresolved deployment limitation rather than a negative causal conclusion. Module 10 completed with deterministic complexity policy, global budget ledger, termination decisions, bounded follow-up scheduling, and 130 passing tests with 1 live test skipped.
