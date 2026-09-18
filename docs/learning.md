@@ -479,3 +479,59 @@ Implemented deterministic `IncidentComplexity` classification and role-selection
 Validation: coordination tests passed 22 tests; full validation passed 130 tests with 1 live test skipped; Ruff check and format check passed. Final Module 10 conceptual review remains pending.
 ### Module 10 final review and completion
 The learner correctly assigned model proposal versus deterministic coordinator ownership, justified complexity-aware specialist selection, handled independent model/tool budget exhaustion, and explained duplicate/circular follow-up risks. They correctly rejected a deployment proposal after the follow-up limit and required a truthful unresolved deployment limitation rather than a negative causal conclusion. Module 10 completed with deterministic complexity policy, global budget ledger, termination decisions, bounded follow-up scheduling, and 130 passing tests with 1 live test skipped.
+## Module 11 - Runbook RAG and change intelligence
+
+### Concept and why it exists
+IncidentLens needs operational knowledge and deployment history, but these sources answer different questions from telemetry. Retrieval can provide relevant runbook guidance or change-event context; it cannot turn semantic similarity into proof of root cause.
+
+### Mental model and small example
+- **Retrieval:** fetches existing documents or events matching a query and deterministic metadata filters.
+- **Memory:** persists knowledge intentionally across investigations.
+- **Tool call:** performs a bounded application action, such as querying change events or retrieving a runbook section.
+
+A runbook section saying "connection pool exhaustion can cause checkout timeouts" is guidance. A metric or log record showing pool exhaustion during the incident is incident evidence. The final report must cite and label them separately.
+
+### Internal behavior
+Retrieved documents need stable IDs, exact section citations, service/version metadata, validity windows, and provenance. Filters should be applied deterministically before or alongside ranking. Stale, contradictory, missing, or malicious retrieved text must remain untrusted content and must not override system instructions or evidence contracts.
+
+### IncidentLens application
+Module 11 adds a small versioned runbook corpus and a Change Agent for deployment/configuration events. Both remain read-only and bounded. The Runbook Agent provides procedural guidance; the Change Agent provides change-event observations that can support or contradict a deployment hypothesis.
+
+### Boundaries, failure modes, and common mistakes
+Semantic similarity is not causal evidence. A highly similar runbook can be outdated or generic. A deployment occurring near an incident is correlation, not proof of causation. Retrieved text may contain prompt injection, so it must be passed as quoted data with citations, not instructions.
+
+### Alternatives and trade-offs
+Keyword retrieval is simple and auditable but can miss paraphrases. Vector retrieval improves semantic recall but needs metadata filters, version handling, and grounding checks. Hybrid retrieval is preferred for the small corpus: deterministic filters plus lexical/semantic ranking, with exact source citations.
+
+### Exercise and validation observations
+Orientation started; knowledge check pending.
+
+### Interview explanation
+Telemetry tells us what happened in the incident; runbooks tell us how operators commonly respond; change retrieval tells us what changed. Retrieval can support investigation and next steps, but only time-bounded, provenance-linked telemetry and change observations should support incident claims.
+
+### Sources
+- [LangChain: Retrieval](https://docs.langchain.com/oss/python/langchain/retrieval)
+- [OWASP: LLM Prompt Injection Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html)
+
+### My questions, corrections, and revision items
+- Knowledge check pending: explain why a relevant runbook section cannot prove the current incident root cause.
+### Module 11 retrieval-boundary knowledge check
+The learner correctly distinguished runbook guidance from current-incident evidence, identified service/environment/version/status/validity metadata filters, kept deployment events separate from telemetry, and treated retrieved prompt-injection content as untrusted data subject to deterministic permissions and budgets.
+### Module 11 citation-grounding check
+The learner correctly explained that stable document/section identifiers provide auditable provenance, while similarity scores explain ranking rather than truth or applicability. They described the claim -> citation -> source section chain and preserved metadata/validity inspection.
+### Module 11 retrieval contract implementation
+Added `src/incidentlens/retrieval.py` with versioned provider-neutral `RunbookSection`, `RunbookCitation`, and `ChangeEvent` contracts. Runbook filtering enforces service, environment, active status, UTC-aware validity windows, and half-open temporal semantics before any ranking. Retrieval tests cover irrelevant, deprecated, expired, missing, and naive-time inputs.
+
+Validation: focused retrieval tests passed 8 tests; full validation passed 138 tests with 1 live test skipped; Ruff checks passed. Ranking, corpus loading, Runbook Agent, Change Agent, and retrieval evaluation remain pending.
+### Module 11 versioned corpus and retrieval implementation
+Added `RunbookCorpus` with schema-version validation, unique document/section IDs, JSON loading, deterministic lexical ranking, bounded limits, metadata-first filtering, and exact `RunbookCitation` outputs. Retrieval scores explain ranking only; citations preserve source identity and content. Full validation passed 142 tests with 1 live test skipped; Ruff checks passed.
+### Module 11 Runbook and Change Agent implementation
+Added isolated read-only `RunbookAgent` and `ChangeAgent` interfaces with separate query contracts, allowed tools, and signal scopes. Runbook retrieval returns exact citations; Change retrieval returns bounded, UTC-windowed, deterministically ordered change events with stable change IDs. Full validation passed 145 tests with 1 live test skipped; Ruff checks passed.
+### Module 11 adversarial retrieval validation
+Added adversarial tests for irrelevant, contradictory, stale/expired, missing, and malicious runbook content. Contradictory sections remain separate citations; missing matches return no retrieval evidence; malicious text remains inert quoted data and does not expand Runbook Agent permissions. Full validation passed 149 tests with 1 live test skipped; Ruff checks passed.
+### Module 11 retrieval evaluation implementation
+Added retrieval-only `RetrievalMetrics`, citation identity keys, and deterministic evaluation for precision, recall, hit rate, and reciprocal rank. Evaluation compares retrieved runbook citations against labeled relevant section IDs and does not judge final diagnosis correctness. Full validation passed 153 tests with 1 live test skipped; Ruff checks passed.
+### Module 11 change correlation validation
+Added deterministic temporal change correlation with before/during incident relations, bounded pre-incident proximity, stable ordering, and an explicit `supports_causation=False` marker. Tests verify nearby versus distant deployments and invalid windows. Full validation passed 155 tests with 1 live test skipped; Ruff checks passed.
+### Module 11 final review and completion
+The learner correctly explained that similarity scores rank text but do not prove current incident facts, required deterministic metadata eligibility before ranking, preserved contradictory runbook sections, separated guidance from telemetry evidence, and treated deployment timing as correlation rather than causation. They correctly rejected malicious runbook instructions as authority while preserving them as auditable untrusted content. Module 11 completed with versioned runbook/change contracts, isolated agents, deterministic retrieval/evaluation, adversarial tests, and 155 passing tests with 1 live test skipped.

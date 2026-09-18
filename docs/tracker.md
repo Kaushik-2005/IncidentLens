@@ -2,11 +2,11 @@
 
 ## Current position
 - Roadmap: ../roadmap.md
-- Module: 9 - Memory, persistence, checkpoints, and artifacts
+- Module: 11 - Runbook RAG and change intelligence
 - Phase: Orient
 - Status: In Progress
 - Mode: Guided Learning
-- Exact current task: Orient Module 9 on state persistence, checkpoints, artifacts, and recovery.
+- Exact current task: Implement a versioned runbook/change corpus and deterministic retrieval filters.
 - Last completed evidence: Module 1 completed on 2026-09-10 through source review, learner explanations, project contract draft, failure-analysis review, and design record reconciliation.
 
 ## Module progress
@@ -21,7 +21,7 @@
 | 7 | Coordination topologies and protocol design | Completed | Checked | Completed |
 | 8 | Parallel investigation and evidence aggregation | Completed | Checked | Completed |
 | 9 | Memory, persistence, checkpoints, and artifacts | In progress | Checked | In progress |
-| 10 | Planning, adaptive routing, budgets, and termination | Not started | Not checked | Not started |
+| 10 | Planning, adaptive routing, budgets, and termination | Completed | Checked | Completed |
 | 11 | Runbook RAG and change intelligence | Not started | Not checked | Not started |
 | 12 | Hypothesis formation, critique, and calibrated confidence | Not started | Not checked | Not started |
 | 13 | Human oversight, authorization, and safe actions | Not started | Not checked | Not started |
@@ -366,3 +366,76 @@
 - Status: Completed.
 - Known limitation: follow-up dependencies are intentionally flat, so circular delegation is prevented by topology rather than modeled as a general dependency graph.
 - Exact next task: begin Module 11 on runbook retrieval, change intelligence, and citation grounding.
+### Module 11 orientation evidence
+- [x] Reviewed the roadmap scope for retrieval, metadata filters, versioned runbooks, change correlation, citation grounding, and retrieval evaluation.
+- [ ] Explain retrieval versus memory versus tool calls.
+- [ ] Implement a versioned runbook corpus and Runbook Agent.
+- [ ] Implement a Change Agent with bounded change-event retrieval.
+- [ ] Validate irrelevant, contradictory, stale, missing, and malicious content.
+- Exact next task: distinguish retrieved guidance from current-incident telemetry evidence.
+### Module 11 retrieval-boundary evidence
+- [x] Distinguished retrieval, memory, tool calls, runbook guidance, change observations, and telemetry evidence.
+- [x] Defined deterministic metadata filtering and separate deployment citations.
+- [x] Correctly handled malicious runbook instructions as untrusted content.
+- [ ] Define versioned corpus, chunk, citation, and change-event contracts.
+- Exact next task: design exact runbook-section citations and validity-aware retrieval results.
+### Module 11 citation evidence
+- [x] Explained exact section citations, provenance, validity inspection, and the limits of similarity scores.
+- [ ] Implement versioned runbook-section and change-event contracts.
+- [ ] Implement deterministic metadata filters and bounded retrieval.
+- Exact next task: add provider-neutral retrieval contracts and tests for validity/status/service filters.
+### Module 11 retrieval implementation evidence
+- [x] Added provider-neutral runbook section, citation, and change-event contracts.
+- [x] Added deterministic service/environment/status/validity filtering.
+- [x] Added UTC and half-open validity validation.
+- [x] Retrieval validation: 8 focused tests; full validation: 138 passed, 1 skipped; Ruff checks passed.
+- [ ] Add versioned corpus loading, bounded ranking, Runbook Agent, and Change Agent.
+- Exact next task: add synthetic runbook corpus loading and exact citation-preserving retrieval.
+### Module 11 corpus and retrieval implementation evidence
+- [x] Added versioned JSON runbook corpus loading.
+- [x] Added unique document/section identity validation.
+- [x] Added deterministic lexical retrieval after metadata/validity filtering.
+- [x] Added bounded limits and exact citation output.
+- [x] Retrieval validation: 12 focused tests; full validation: 142 passed, 1 skipped; Ruff checks passed.
+- [ ] Add Runbook Agent and Change Agent tool boundaries.
+- Exact next task: add a bounded Runbook Agent interface and separate Change Agent retrieval with change-event IDs.
+### Module 11 agent interface implementation evidence
+- [x] Added Runbook Agent with runbook-only retrieval and citation outputs.
+- [x] Added Change Agent with change-only bounded event retrieval.
+- [x] Enforced separate tool/signal scopes and UTC time windows.
+- [x] Retrieval validation: 15 focused tests; full validation: 145 passed, 1 skipped; Ruff checks passed.
+- [ ] Validate irrelevant, contradictory, stale, missing, and malicious runbook content.
+- [ ] Evaluate retrieval separately from final diagnosis generation.
+- Exact next task: add adversarial corpus fixtures and retrieval evaluation cases.
+### Module 11 adversarial retrieval evidence
+- [x] Tested irrelevant and missing retrieval matches.
+- [x] Tested contradictory sections without automatic retriever resolution.
+- [x] Tested stale/expired filtering.
+- [x] Tested malicious runbook content remains inert data with unchanged tool permissions.
+- [x] Full validation: `python -m pytest -q` -> 149 passed, 1 skipped; Ruff checks passed.
+- [ ] Evaluate retrieval separately from final diagnosis generation and add change-correlation cases.
+- Exact next task: add retrieval metrics/evaluation and test deployment correlation versus causation.
+### Module 11 retrieval evaluation evidence
+- [x] Added retrieval-only precision, recall, hit-rate, and reciprocal-rank metrics.
+- [x] Evaluated perfect, partial, miss, and empty-relevance cases.
+- [x] Kept retrieval evaluation separate from final diagnosis evaluation.
+- [x] Full validation: `python -m pytest -q` -> 153 passed, 1 skipped; Ruff checks passed.
+- [ ] Add deployment correlation-versus-causation cases and final Module 11 review.
+- Exact next task: test change-event temporal correlation without treating proximity as causation.
+### Module 11 change correlation evidence
+- [x] Added temporal before/during change-event correlation.
+- [x] Excluded distant changes with bounded pre-incident proximity.
+- [x] Explicitly prevented correlation results from supporting causation.
+- [x] Full validation: `python -m pytest -q` -> 155 passed, 1 skipped; Ruff checks passed.
+- [ ] Complete Module 11 final conceptual review and retrieval/change evaluation exercise.
+- Exact next task: answer final questions on retrieval grounding, stale knowledge, and correlation versus causation.
+### Module 11 final review and completion
+- [x] Learner explained why similarity cannot prove root cause and identified deterministic metadata filters.
+- [x] Learner preserved contradictory runbook sections with separate citations.
+- [x] Learner distinguished runbook guidance, telemetry evidence, and change observations.
+- [x] Learner correctly handled malicious runbook instructions as inert data with no new permissions.
+- [x] Learner completed temporal-correlation failure analysis without causal promotion.
+- [x] Implementation and validation complete: `python -m pytest -q` -> 155 passed, 1 skipped; Ruff check and format check passed.
+- Status: Completed.
+- Known limitation: retrieval is deterministic lexical ranking over a small synthetic corpus; semantic/vector retrieval and full end-to-end diagnosis evaluation remain deferred.
+- Exact next task: begin Module 12 on hypothesis formation, contradiction handling, and calibrated confidence.

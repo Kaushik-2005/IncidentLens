@@ -656,3 +656,55 @@ Added deterministic complexity classification and baseline role selection, a glo
 Module 10 established the hybrid planning boundary: deterministic complexity-based baseline selection, model-proposed evidence-gap follow-ups, coordinator validation, role-derived permissions, global budget accounting, and explicit termination reasons. A simple incident can select only the metrics specialist; broader incidents can select all available specialists. Budget exhaustion and follow-up limits produce partial/inconclusive reporting rather than unsupported conclusions.
 
 Verification: final conceptual review and failure analysis passed; `python -m pytest -q` passed 130 tests with 1 live test skipped; Ruff check and format check passed. Follow-up task dependencies remain intentionally flat and circular delegation is prevented by the centralized topology.
+### Module 11 - Runbook RAG and change intelligence
+- Status: In Progress
+
+#### Before this module
+IncidentLens had telemetry evidence tools and specialist findings, but no versioned operational-knowledge corpus or bounded deployment/change intelligence path.
+
+#### What changed
+Module 11 orientation separates retrieved runbook guidance, change-event observations, and current-incident telemetry. Proposed Runbook and Change Agents will use deterministic service/version/validity filters and exact citations; retrieved text remains untrusted data and cannot change workflow policy.
+
+#### Diagram/Flow
+```mermaid
+flowchart LR
+    Query[Incident question] --> Filter[Deterministic metadata filters]
+    Filter --> Runbook[Versioned runbook retrieval]
+    Filter --> Changes[Bounded change-event retrieval]
+    Runbook --> Citations[Exact section citations]
+    Changes --> ChangeIDs[Change-event IDs]
+    Telemetry[Incident telemetry] --> Evidence[Incident evidence]
+    Citations --> Synthesis[Synthesis with labeled sources]
+    ChangeIDs --> Synthesis
+    Evidence --> Synthesis
+```
+
+#### Why it changed
+Runbooks explain possible procedures and changes explain historical events; neither should be conflated with telemetry observations or treated as automatic causal proof.
+
+#### Ownership and boundary decisions
+The retrieval tools own filtering, ranking bounds, provenance, and citation references. Agents may request retrieval; deterministic code controls scope, versions, validity windows, and tool permissions. Synthesis must distinguish guidance, observation, inference, and hypothesis.
+
+#### Known limitations after this module
+Implementation and retrieval evaluation are pending. The corpus will initially be synthetic and small; vector retrieval and live change backends are not yet present.
+
+#### Next design step
+Define versioned runbook-section and change-event contracts, add bounded retrieval tools, and test stale, contradictory, missing, irrelevant, and malicious content.
+#### Module 11 retrieval contract implementation update
+Added provider-neutral `RunbookSection`, `RunbookCitation`, and `ChangeEvent` contracts in `src/incidentlens/retrieval.py`. Deterministic filtering enforces service, environment, active status, UTC-aware validity, and half-open incident-time windows. Verification passed 138 tests with 1 live test skipped and Ruff checks. Corpus loading, ranking, agent wiring, and retrieval evaluation remain pending.
+#### Module 11 corpus and retrieval implementation update
+Added `RunbookCorpus` JSON loading and deterministic lexical retrieval. Metadata and validity filters run before ranking; result limits are bounded; ties are stable; and outputs preserve exact document/section citations. Runbook retrieval remains guidance, not telemetry evidence. Verification passed 142 tests with 1 live test skipped and Ruff checks.
+#### Module 11 agent interface implementation update
+Added isolated read-only `RunbookAgent` and `ChangeAgent` interfaces. The Runbook Agent can call only `retrieve_runbook` and returns `RunbookCitation` objects; the Change Agent can call only `query_changes` and returns bounded `ChangeEvent` objects. Their query contracts and signal scopes are separate, and change results are UTC-windowed and deterministically ordered. Verification passed 145 tests with 1 live test skipped and Ruff checks.
+#### Module 11 adversarial retrieval update
+Added tests for irrelevant, contradictory, stale, missing, and malicious runbook content. The retriever preserves contradictory sources as separate citations, returns no evidence for missing matches, filters stale sections deterministically, and treats malicious text as inert content without expanding agent permissions. Verification passed 149 tests with 1 live test skipped and Ruff checks.
+#### Module 11 retrieval evaluation update
+Added deterministic retrieval metrics for citation precision, recall, hit rate, and reciprocal rank. Metrics compare retrieved section IDs with labeled relevant IDs and intentionally stop at retrieval quality; final diagnosis correctness remains a separate evaluation layer. Verification passed 153 tests with 1 live test skipped and Ruff checks.
+#### Module 11 change correlation update
+Added deterministic temporal correlation for change events with bounded pre-incident proximity, before/during relations, stable ordering, and an explicit non-causal result contract. Deployment/configuration timing can be surfaced as a candidate explanation, but no correlation result is accepted as causal proof. Verification passed 155 tests with 1 live test skipped and Ruff checks.
+### Module 11 completion update
+- Status: Completed
+
+Module 11 established separate read-only Runbook and Change Agents. Versioned runbook sections are filtered by deterministic service/environment/status/validity metadata before lexical ranking and returned with exact citations. Change events are bounded by UTC windows and surfaced as temporal correlations without causal promotion. Contradictory and malicious retrieved content remains separate, auditable, untrusted data.
+
+Verification: final conceptual review and failure analysis passed; `python -m pytest -q` passed 155 tests with 1 live test skipped; Ruff check and format check passed. Semantic/vector retrieval and full diagnosis evaluation remain deferred.
