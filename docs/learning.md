@@ -535,3 +535,69 @@ Added retrieval-only `RetrievalMetrics`, citation identity keys, and determinist
 Added deterministic temporal change correlation with before/during incident relations, bounded pre-incident proximity, stable ordering, and an explicit `supports_causation=False` marker. Tests verify nearby versus distant deployments and invalid windows. Full validation passed 155 tests with 1 live test skipped; Ruff checks passed.
 ### Module 11 final review and completion
 The learner correctly explained that similarity scores rank text but do not prove current incident facts, required deterministic metadata eligibility before ranking, preserved contradictory runbook sections, separated guidance from telemetry evidence, and treated deployment timing as correlation rather than causation. They correctly rejected malicious runbook instructions as authority while preserving them as auditable untrusted content. Module 11 completed with versioned runbook/change contracts, isolated agents, deterministic retrieval/evaluation, adversarial tests, and 155 passing tests with 1 live test skipped.
+## Module 12 - Hypothesis formation, critique, and calibrated confidence
+
+### Concept and why it exists
+An incident investigation must generate plausible explanations without promoting them to facts. Module 12 separates candidate hypotheses, supporting and contradicting evidence, missing evidence, verification, abstention, and confidence calibration.
+
+### Mental model and small example
+A trace may show that checkout requests spend time in `payment-service`. A candidate hypothesis is: "payment-service degradation contributed to the latency." That is not yet a verified root cause. Verification must check counter-evidence, alternative explanations, evidence completeness, and causal gaps.
+
+### Internal behavior
+A hypothesis should identify its claim kind, supporting evidence IDs, contradicting evidence IDs, missing evidence, confidence, and limitations. A verifier receives structured findings and raw evidence references independently from the generator and can downgrade, reject, or mark a hypothesis `insufficient_evidence`.
+
+### IncidentLens application
+The existing report and specialist finding contracts already preserve evidence IDs and confidence. Module 12 adds a Hypothesis Agent and a distinct Verifier Agent with different context and instructions, bounded critique rounds, and explicit abstention.
+
+### Boundaries, failure modes, and common mistakes
+Multiple agents agreeing may reflect shared prompts, shared evidence, or the same anchoring error; agreement is not independent confirmation. A plausible unsupported cause, a missing signal, or a deceptive distractor must not receive high confidence merely because the explanation sounds coherent.
+
+### Alternatives and trade-offs
+Reflection can catch omissions but adds model calls and may amplify correlated errors. Debate can expose alternatives but can create false consensus. A bounded verifier with structured evidence checks is preferred over unconstrained persona debate.
+
+### Exercise and validation observations
+Orientation started; knowledge check pending.
+
+### Interview explanation
+A hypothesis is a proposed causal explanation; verification tests it against supporting, contradicting, and missing evidence. Confidence reflects evidence quality and coverage, not how many agents repeat the same claim. When evidence is insufficient, the system should abstain.
+
+### Sources
+- [AutoGen: Reflection](https://microsoft.github.io/autogen/stable/user-guide/core-user-guide/design-patterns/reflection.html)
+- [AutoGen: Multi-agent debate](https://microsoft.github.io/autogen/stable/user-guide/core-user-guide/design-patterns/multi-agent-debate.html)
+- [Reflexion paper](https://arxiv.org/abs/2303.11366)
+
+### My questions, corrections, and revision items
+- Knowledge check pending: explain why a high-confidence hypothesis can still be unsupported.
+### Module 12 hypothesis and verification boundary check
+The learner correctly distinguished supporting evidence from causal mechanism evidence, explained why verification must inspect structured claims and evidence references, separated weak/contradictory evidence from missing evidence, and explained why agent agreement is not independent confirmation when evidence overlaps.
+### Module 12 abstention check
+The learner correctly distinguished low confidence, where available evidence permits a weak evaluation, from `insufficient_evidence`, where required evidence is unavailable and the system must abstain rather than imply a weakly supported conclusion.
+### Module 12 implementation evidence
+- [x] Added structured `EvidenceTable` and `HypothesisCandidate` contracts with forbidden extra fields.
+- [x] Enforced disjoint supporting and contradicting evidence IDs.
+- [x] Enforced explicit missing evidence for `insufficient_evidence` hypotheses.
+- [x] Added deterministic `VerificationResult` and `verify_hypothesis(...)` grounding behavior.
+- [x] Unknown evidence IDs are rejected before verification classification.
+- [x] Conflicting evidence downgrades a hypothesis to `low_confidence`.
+- [x] Missing required signals produce `insufficient_evidence`, not a factual negative conclusion.
+- [x] Focused validation: `python -m pytest tests\\test_hypotheses.py -q` -> 7 passed.
+- [x] Full validation: `python -m pytest -q` -> 162 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Add a separate verifier-agent boundary and bounded critique rounds.
+### Module 12 verifier boundary evidence
+- [x] Added isolated `VerifierContext` containing only incident summary, candidate hypotheses, and collected evidence.
+- [x] Forbidden unexpected context fields such as peer conclusions and hidden ground truth.
+- [x] Added `VerifierAgent` with a deterministic maximum critique-round boundary.
+- [x] Rejects unknown hypothesis IDs and out-of-scope evidence before review.
+- [x] Focused validation: `python -m pytest tests\\test_hypotheses.py -q` -> 11 passed.
+- [x] Full validation: `python -m pytest -q` -> 166 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Add model-backed critique behavior and final Module 12 conceptual review.
+### Module 12 model-backed critique evidence
+- [x] Added provider-neutral `ModelCritiqueProposal` for untrusted model output.
+- [x] Added `VerifierAgent.review_with_model(...)` without leaking provider-specific APIs into the contract.
+- [x] Deterministically validates proposal schema, hypothesis identity, cited evidence IDs, and critique-round budget before acceptance.
+- [x] Deterministically derives final verification status; model text cannot promote unsupported evidence to a verified cause.
+- [x] Tests cover conflicting model critique, unknown evidence, malformed boundary behavior, and no model call after round exhaustion.
+- [x] Full validation: `python -m pytest -q` -> 169 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Complete final Module 12 conceptual review and deceptive-distractor exercise.
+### Module 12 final review
+The learner correctly explained that model confidence is not proof, that evidence IDs must be checked for relevance and causal sufficiency, and that shared evidence prevents agent agreement from being treated as independent confirmation. The deployment example was correctly classified as `insufficient_evidence`: D1 and M1 establish temporal ordering, while T1 localizes latency, but no evidence establishes a deployment-specific mechanism or rollback effect. The final wording preserved the unresolved causal gap without claiming the deployment was harmless.

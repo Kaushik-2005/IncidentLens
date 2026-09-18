@@ -708,3 +708,100 @@ Added deterministic temporal correlation for change events with bounded pre-inci
 Module 11 established separate read-only Runbook and Change Agents. Versioned runbook sections are filtered by deterministic service/environment/status/validity metadata before lexical ranking and returned with exact citations. Change events are bounded by UTC windows and surfaced as temporal correlations without causal promotion. Contradictory and malicious retrieved content remains separate, auditable, untrusted data.
 
 Verification: final conceptual review and failure analysis passed; `python -m pytest -q` passed 155 tests with 1 live test skipped; Ruff check and format check passed. Semantic/vector retrieval and full diagnosis evaluation remain deferred.
+### Module 12 - Hypothesis formation, critique, and calibrated confidence
+- Status: In Progress
+
+#### Before this module
+IncidentLens produced evidence-linked reports and specialist findings, but did not yet have separate hypothesis-generation and verification contracts or explicit abstention semantics.
+
+#### What changed
+Module 12 orientation establishes a generator/verifier boundary. The Hypothesis Agent proposes ranked candidates with supporting, contradicting, and missing evidence. The Verifier Agent receives structured claims and evidence references independently, checks grounding and counter-evidence, and may downgrade, reject, or mark `insufficient_evidence`.
+
+#### Diagram/Flow
+```mermaid
+flowchart LR
+    Findings[Structured findings] --> Hypothesis[Hypothesis Agent]
+    Hypothesis --> Candidates[Candidate hypotheses]
+    Candidates --> Verify[Verifier Agent]
+    Evidence[Evidence store] --> Verify
+    Verify -->|Supported with limits| Report[Calibrated report]
+    Verify -->|Contradicted or unsupported| Downgrade[Reject/downgrade/abstain]
+    Verify -->|Missing evidence| Unknown[Insufficient evidence]
+```
+
+#### Why it changed
+A coherent explanation or repeated agent agreement is not proof. A separate verifier creates an explicit boundary for counter-evidence, causal gaps, and uncertainty.
+
+#### Ownership and boundary decisions
+The model proposes hypotheses and verification observations. Deterministic code validates evidence IDs, enforces critique rounds, preserves contradictions, and controls report acceptance. The verifier cannot invent evidence or promote unsupported claims.
+
+#### Known limitations after this module
+Implementation and evaluation are pending. Confidence calibration will initially use structured rules and synthetic scenarios rather than statistical calibration over a large incident set.
+
+#### Next design step
+Define hypothesis/verifier contracts with evidence obligations, add bounded verification, and test unsupported, contradictory, incomplete, and distractor-heavy scenarios.
+### Module 12 — Hypothesis formation, contradiction handling, and calibrated confidence
+- Status: In Progress
+
+#### Before this module
+Hypotheses were represented in the general report contract, but there was no dedicated evidence-table contract or deterministic verification boundary for candidate causes.
+
+#### What changed
+Added `src/incidentlens/hypotheses.py` with structured hypothesis/evidence contracts, evidence-ID grounding, explicit abstention semantics, and deterministic verification outcomes. Added focused tests in `tests/test_hypotheses.py`.
+
+#### Why it changed
+A schema-valid causal claim can still cite nonexistent evidence, ignore contradictory observations, or confuse unavailable evidence with normal behavior. Verification needs to inspect claims and evidence references before synthesis.
+
+#### Ownership and boundary decisions
+The model may propose a candidate hypothesis. Deterministic application code validates evidence IDs and classifies the candidate as supported, low-confidence, contradicted, or insufficient-evidence. Missing evidence never becomes evidence of absence.
+
+#### Verification and evidence
+`python -m pytest tests\\test_hypotheses.py -q` -> 7 passed. Full validation -> 162 passed, 1 skipped. Ruff check and format check passed.
+
+#### Known limitations after this module
+The verifier is currently a deterministic contract-level check, not yet a separate model-driven Verifier Agent with bounded critique rounds or alternative-hypothesis generation.
+
+#### Next design step
+Add the isolated Verifier Agent contract, fixed critique budget, and tests for unsupported causes, conflicting specialist findings, missing signals, and deceptive distractors.
+### Module 12 verifier-boundary follow-up
+- Status: In Progress
+
+#### What changed
+Added `VerifierContext`, `VerifierRunResult`, and `VerifierAgent` to `src/incidentlens/hypotheses.py`. The verifier receives an isolated structured context, validates candidate citations against available evidence, and enforces `max_critique_rounds` before review.
+
+#### Ownership and boundary decisions
+The model may propose critiques, but the deterministic verifier boundary owns context construction, evidence grounding, hypothesis lookup, and critique-round limits. Peer conclusions and evaluator-only fields are rejected by the context schema rather than trusted from conversation text.
+
+#### Verification and evidence
+`python -m pytest tests\\test_hypotheses.py -q` -> 11 passed. Full validation -> 166 passed, 1 skipped. Ruff check and format check passed.
+
+#### Known limitations after this module
+The current verifier review function is deterministic and contract-level. A model-backed critique adapter and fixed multi-round comparison remain to be added and evaluated.
+### Module 12 model-backed critique follow-up
+- Status: In Progress
+
+#### What changed
+Added `ModelCritiqueProposal` and `VerifierAgent.review_with_model(...)` in `src/incidentlens/hypotheses.py`. The model receives a compact verifier context and proposes supporting, contradicting, and missing evidence. The application validates and deterministically classifies that proposal.
+
+#### Ownership and boundary decisions
+The model proposes critique content only. It cannot select another hypothesis, cite unavailable evidence, exceed the critique-round limit, or directly set the final confidence/status. Provider-specific model clients remain outside this provider-neutral contract.
+
+#### Failure and security implications
+Malformed proposals, unknown evidence IDs, hypothesis-scope mismatches, and exhausted rounds are rejected before the result is accepted. A model cannot convert a missing signal into a negative observation or promote temporal correlation into causation.
+
+#### Verification and evidence
+`python -m pytest -q` -> 169 passed, 1 skipped. Ruff check and format check passed.
+
+#### Known limitations after this module
+The current model callback is tested with a fake provider. Live Gemini verifier prompting and multi-round quality evaluation remain unverified.
+### Module 12 final review and completion
+- Status: Completed
+
+#### Verification and evidence
+The learner completed the conceptual review and deceptive deployment-correlation exercise. The implementation gate remains supported by `169 passed, 1 skipped`, Ruff check passed, and format check passed.
+
+#### Known limitations after this module
+The verifier boundary is implemented and tested with a fake model callback. Live provider prompting, calibration against human judgments, and multi-round critique quality are deferred to evaluation work.
+
+#### Next design step
+Add human approval and authorization boundaries before any simulated remediation in Module 13.

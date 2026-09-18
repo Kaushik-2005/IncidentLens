@@ -2,11 +2,11 @@
 
 ## Current position
 - Roadmap: ../roadmap.md
-- Module: 11 - Runbook RAG and change intelligence
+- Module: 13 - Human oversight, authorization, and safe actions
 - Phase: Orient
 - Status: In Progress
 - Mode: Guided Learning
-- Exact current task: Implement a versioned runbook/change corpus and deterministic retrieval filters.
+- Exact current task: begin Module 13 with human approval, authorization, and safe-action boundaries.
 - Last completed evidence: Module 1 completed on 2026-09-10 through source review, learner explanations, project contract draft, failure-analysis review, and design record reconciliation.
 
 ## Module progress
@@ -20,10 +20,10 @@
 | 6 | Specialization and context engineering | Completed | Checked | Completed |
 | 7 | Coordination topologies and protocol design | Completed | Checked | Completed |
 | 8 | Parallel investigation and evidence aggregation | Completed | Checked | Completed |
-| 9 | Memory, persistence, checkpoints, and artifacts | In progress | Checked | In progress |
+| 9 | Memory, persistence, checkpoints, and artifacts | Completed | Checked | Completed |
 | 10 | Planning, adaptive routing, budgets, and termination | Completed | Checked | Completed |
-| 11 | Runbook RAG and change intelligence | Not started | Not checked | Not started |
-| 12 | Hypothesis formation, critique, and calibrated confidence | Not started | Not checked | Not started |
+| 11 | Runbook RAG and change intelligence | Completed | Checked | Completed |
+| 12 | Hypothesis formation, critique, and calibrated confidence | Completed | Checked | Completed |
 | 13 | Human oversight, authorization, and safe actions | Not started | Not checked | Not started |
 | 14 | Reliability, security, and adversarial behavior | Not started | Not checked | Not started |
 | 15 | Evaluation, ablations, observability, and optimization | Not started | Not checked | Not started |
@@ -439,3 +439,53 @@
 - Status: Completed.
 - Known limitation: retrieval is deterministic lexical ranking over a small synthetic corpus; semantic/vector retrieval and full end-to-end diagnosis evaluation remain deferred.
 - Exact next task: begin Module 12 on hypothesis formation, contradiction handling, and calibrated confidence.
+### Module 12 orientation evidence
+- [x] Reviewed the roadmap scope for hypothesis generation, evidence tables, alternatives, verification, critique limits, abstention, and calibrated confidence.
+- [ ] Explain why agreement between agents is not independent confirmation.
+- [ ] Implement hypothesis and verifier contracts.
+- [ ] Validate unsupported causes, conflicting findings, missing signals, and distractors.
+- Exact next task: distinguish a candidate hypothesis from a verified conclusion and define evidence obligations.
+### Module 12 hypothesis knowledge-check evidence
+- [x] Distinguished supporting evidence from evidence establishing a causal mechanism.
+- [x] Explained structured verifier inputs and provenance-based independence.
+- [x] Distinguished downgrade/contradiction from `insufficient_evidence`.
+- [ ] Define hypothesis, verification, evidence-table, and abstention contracts.
+- Exact next task: design a structured hypothesis with supporting, contradicting, missing evidence, and calibrated confidence.
+### Module 12 calibrated-confidence evidence
+- [x] Distinguished evaluated low confidence from unavailable-evidence abstention.
+- [ ] Implement structured hypothesis and verification outcome contracts.
+- [ ] Add bounded verifier behavior and contradiction tests.
+- Exact next task: add hypothesis/evidence-table models with deterministic evidence-ID grounding.
+### Module 12 hypothesis contract implementation evidence
+- [x] Added `EvidenceTable` with disjoint supporting/contradicting evidence validation.
+- [x] Added `HypothesisCandidate` status semantics, including required missing evidence for abstention.
+- [x] Added deterministic `VerificationResult` and `verify_hypothesis(...)`.
+- [x] Added tests for unknown evidence, contradictory evidence downgrade, and missing-signal abstention.
+- [x] Focused validation: 7 passed; full validation: 162 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Implement isolated verifier-agent context and bounded critique rounds.
+- Exact next task: define verifier input/output contracts and test unsupported, conflicting, missing, and deceptive evidence cases.
+### Module 12 verifier boundary implementation evidence
+- [x] Added isolated verifier context with forbidden extra fields.
+- [x] Added deterministic verifier agent wrapper and critique-round limit.
+- [x] Added tests for hidden-context exclusion, out-of-scope evidence, round exhaustion, and one-result-per-candidate behavior.
+- [x] Focused validation: 11 passed; full validation: 166 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Add model-backed critique rounds and complete final Module 12 review.
+- Exact next task: test unsupported causal claims, conflicting specialist findings, missing signals, and deceptive distractors through the verifier boundary.
+### Module 12 model-backed critique implementation evidence
+- [x] Added structured model critique proposal and provider-neutral callback boundary.
+- [x] Added deterministic reconciliation of model evidence claims into verification outcomes.
+- [x] Added tests for contradictory critique, unknown citations, and round exhaustion before model invocation.
+- [x] Full validation: `python -m pytest -q` -> 169 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Complete final conceptual review, deceptive-distractor exercise, and Module 12 completion gate.
+- Exact next task: explain verifier independence, unsupported causal claims, evidence coverage, and abstention in the final review.
+### Module 12 final review and completion
+- [x] Explained why model confidence and existing evidence IDs do not prove causation.
+- [x] Distinguished `low_confidence` from `insufficient_evidence`.
+- [x] Explained why shared evidence does not create independent confirmation.
+- [x] Correctly rejected unknown evidence IDs at the deterministic verification boundary.
+- [x] Correctly enforced critique-round limits before model invocation.
+- [x] Completed the deployment-correlation failure analysis: temporal correlation is useful supporting evidence, but causal deployment involvement remains unverified.
+- [x] Implementation and validation complete: `python -m pytest -q` -> 169 passed, 1 skipped; Ruff check and format check passed.
+- Status: Completed.
+- Known limitation: live Gemini verifier prompting and multi-round quality evaluation remain unverified; current model-backed tests use a fake provider callback.
+- Exact next task: begin Module 13 on human oversight, authorization, and safe actions.
