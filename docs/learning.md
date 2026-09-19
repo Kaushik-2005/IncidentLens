@@ -601,3 +601,37 @@ The learner correctly distinguished low confidence, where available evidence per
 - [ ] Complete final Module 12 conceptual review and deceptive-distractor exercise.
 ### Module 12 final review
 The learner correctly explained that model confidence is not proof, that evidence IDs must be checked for relevance and causal sufficiency, and that shared evidence prevents agent agreement from being treated as independent confirmation. The deployment example was correctly classified as `insufficient_evidence`: D1 and M1 establish temporal ordering, while T1 localizes latency, but no evidence establishes a deployment-specific mechanism or rollback effect. The final wording preserved the unresolved causal gap without claiming the deployment was harmless.
+## Module 13 — Human oversight, authorization, and safe actions
+
+### Concept and why it exists
+Module 13 begins with the distinction between authentication, authorization, and human approval. Authentication identifies the actor; authorization determines whether that identity may request or perform a capability; approval is explicit human consent for one exact proposed action. A UI prompt is not a server-side security boundary.
+
+### IncidentLens application
+IncidentLens remains read-only by default. A remediation-capable path will initially create a simulated action plan, bind approval to the incident, action, arguments, evidence references, policy version, approver, and expiry, then revalidate those fields before one execution.
+
+### My questions, corrections, and revision items
+- Explain why authentication alone does not authorize a rollback.
+- Explain why changing action arguments invalidates an existing approval.
+### Module 13 authentication, authorization, and approval check
+The learner correctly explained that authentication proves identity but not permission, and that authorization must verify role, environment scope, and action authority. The learner also correctly explained that approval must bind to exact action arguments: changing a rollback target from v2.4 to v2.5 creates a new action requiring fresh approval.
+### Module 13 action fingerprint check
+The learner correctly explained that evidence references belong in the action fingerprint. Approval therefore binds the exact action, parameters, and supporting justification; changing evidence invalidates the prior approval even when action arguments are unchanged.
+### Module 13 approval-contract implementation
+- [x] Added `ActionPlan`, `Approval`, `AuditEvent`, and `ApprovalValidationError` contracts in `src/incidentlens/approval.py`.
+- [x] Action fingerprints include incident, action type, target, arguments, evidence references, and policy version.
+- [x] Rejected fingerprints cannot be reused; changed arguments or evidence require a new approval.
+- [x] Validation covers authorization, expiry, action/fingerprint matching, and duplicate execution.
+- [x] Focused validation: `python -m pytest tests\\test_approval.py -q` -> 9 passed.
+- [x] Full validation: `python -m pytest -q` -> 178 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Add an approval interrupt/resume path and durable audit-event recording.
+### Module 13 durable approval interrupt/resume
+- [x] Added durable `ApprovalStore` records with `awaiting_approval`, `executing`, `executed`, and `failed` states.
+- [x] Approval requests and execution are recorded as sanitized audit events.
+- [x] Resume pauses without approval and reuses completed execution results.
+- [x] Crash recovery at `executing` returns `indeterminate` and does not repeat the executor.
+- [x] Rejected action fingerprints cannot be approved later.
+- [x] Focused validation: `python -m pytest tests\\test_approval_store.py -q` -> 8 passed.
+- [x] Full validation: `python -m pytest -q` -> 186 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Complete Module 13 final review and verify unauthorized/stale approval cases at the workflow boundary.
+### Module 13 final review
+The learner correctly explained why frontend approval is not a backend security control, why changed action arguments or evidence require a new fingerprint and approval, and why rejected fingerprints must remain blocked. The learner correctly distinguished approver authorization from approval of one exact action. For a crash after `executing`, the learner identified the external side effect as ambiguous and recommended reconciliation rather than blind retry; this matches the implementation's `indeterminate` recovery result.

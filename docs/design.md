@@ -805,3 +805,65 @@ The verifier boundary is implemented and tested with a fake model callback. Live
 
 #### Next design step
 Add human approval and authorization boundaries before any simulated remediation in Module 13.
+### Module 13 — Human oversight, authorization, and safe actions
+- Status: In Progress
+
+#### Before this module
+IncidentLens core investigation paths are read-only and can produce hypotheses or plans, but no approval-bound action contract exists.
+
+#### What changed
+Module 13 orientation establishes separate authentication, authorization, and human-approval controls. Any future simulated remediation must be bound to exact action arguments and revalidated server-side before execution.
+
+#### Ownership and boundary decisions
+The model may propose an action. Deterministic policy code decides whether the capability is allowed. An authorized human approves the exact action. The backend owns final approval validation, idempotency, audit recording, and execution.
+
+#### Next design step
+Define action-plan, approval, authorization, and audit-event contracts before adding an interrupt/resume path.
+### Module 13 approval-contract implementation
+- Status: In Progress
+
+#### What changed
+Added `src/incidentlens/approval.py` with provider-neutral `ActionPlan`, `Approval`, `AuditEvent`, deterministic action fingerprinting, approval validation, and one-time approval consumption.
+
+#### Ownership and boundary decisions
+The model may propose an `ActionPlan`, but deterministic application code computes the fingerprint and validates authorization, expiry, exact action identity, evidence justification, policy version, rejection history, and duplicate execution. Human approval is represented as a separate persisted contract.
+
+#### Failure and security implications
+Changing action arguments or evidence invalidates approval. Rejected fingerprints cannot be reused. Unauthorized, expired, mismatched, and already-consumed actions are rejected with sanitized classifications.
+
+#### Verification and evidence
+`python -m pytest tests\\test_approval.py -q` -> 9 passed. Full validation -> 178 passed, 1 skipped. Ruff check and format check passed.
+
+#### Next design step
+Add a durable approval interrupt/resume path and audit-event persistence, then verify stale approval and duplicate resume behavior.
+### Module 13 durable approval interrupt/resume
+- Status: In Progress
+
+#### What changed
+Extended `src/incidentlens/approval.py` with `ApprovalRecord` and `ApprovalStore`. Approval requests persist before the workflow pauses. Resume validates approval and records an `executing` marker before invoking the simulated executor.
+
+#### Ownership and boundary decisions
+The durable store owns approval persistence, audit-event recording, resume status, and at-most-once execution protection. A resumed workflow never trusts model state or a frontend approval alone.
+
+#### Failure and security implications
+A missing approval returns `awaiting_approval`. A rejected fingerprint cannot be approved later. A crash or failure after the `executing` marker returns `indeterminate` on resume rather than repeating a potentially completed side effect. Raw executor exceptions are not persisted.
+
+#### Verification and evidence
+`python -m pytest tests\\test_approval_store.py -q` -> 8 passed. Full validation -> 186 passed, 1 skipped. Ruff check and format check passed.
+
+#### Known limitations after this module
+The store is a local file-backed implementation and is not yet integrated with the main LangGraph lifecycle or a transactional external action executor.
+
+#### Next design step
+Complete the Module 13 conceptual review and connect the approval boundary to workflow interruption without enabling real remediation.
+### Module 13 final review and completion
+- Status: Completed
+
+#### Verification and evidence
+The learner passed the final conceptual review and crash/recovery analysis. Full validation remains `186 passed, 1 skipped`; Ruff check and format check passed.
+
+#### Known limitations after this module
+The local store returns `indeterminate` for uncertain execution and does not yet reconcile with an external action system. Real remediation remains out of scope; the executor is simulated.
+
+#### Next design step
+Threat-model retries, prompt injection, tool-result poisoning, cross-incident authorization, and safe logging in Module 14.

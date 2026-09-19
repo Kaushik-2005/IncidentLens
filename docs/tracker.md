@@ -2,11 +2,11 @@
 
 ## Current position
 - Roadmap: ../roadmap.md
-- Module: 13 - Human oversight, authorization, and safe actions
+- Module: 14 - Reliability, security, and adversarial behavior
 - Phase: Orient
 - Status: In Progress
 - Mode: Guided Learning
-- Exact current task: begin Module 13 with human approval, authorization, and safe-action boundaries.
+- Exact current task: begin Module 14 with reliability, security, and adversarial threat boundaries.
 - Last completed evidence: Module 1 completed on 2026-09-10 through source review, learner explanations, project contract draft, failure-analysis review, and design record reconciliation.
 
 ## Module progress
@@ -24,7 +24,7 @@
 | 10 | Planning, adaptive routing, budgets, and termination | Completed | Checked | Completed |
 | 11 | Runbook RAG and change intelligence | Completed | Checked | Completed |
 | 12 | Hypothesis formation, critique, and calibrated confidence | Completed | Checked | Completed |
-| 13 | Human oversight, authorization, and safe actions | Not started | Not checked | Not started |
+| 13 | Human oversight, authorization, and safe actions | Completed | Checked | Completed |
 | 14 | Reliability, security, and adversarial behavior | Not started | Not checked | Not started |
 | 15 | Evaluation, ablations, observability, and optimization | Not started | Not checked | Not started |
 | 16 | Productization, live telemetry, and resume-grade capstone | Not started | Not checked | Not started |
@@ -489,3 +489,39 @@
 - Status: Completed.
 - Known limitation: live Gemini verifier prompting and multi-round quality evaluation remain unverified; current model-backed tests use a fake provider callback.
 - Exact next task: begin Module 13 on human oversight, authorization, and safe actions.
+### Module 13 orientation evidence
+- [x] Reviewed the roadmap scope for human approval, authorization, action separation, audit trails, interrupts, and reversibility.
+- [ ] Explain authentication versus authorization versus human approval.
+- [ ] Define exact action-binding and approval contracts.
+- [ ] Implement an approval interrupt and read-only simulated action path.
+- Exact next task: answer the two questions on authentication, authorization, and stale approvals.
+### Module 13 first knowledge check
+- [x] Distinguished authentication from authorization.
+- [x] Explained why exact action changes invalidate prior approval.
+- [ ] Define action fingerprints and stale-approval detection.
+- Exact next task: design the action-plan and approval contracts.
+### Module 13 action fingerprint evidence
+- [x] Explained why evidence references are part of the approval fingerprint.
+- [ ] Define ActionPlan, Approval, and AuditEvent contracts.
+- Exact next task: design the approval lifecycle and deterministic validation rules.
+### Module 13 approval-contract implementation evidence
+- [x] Added action, approval, audit, and validation contracts.
+- [x] Added deterministic fingerprint binding for action arguments and evidence references.
+- [x] Tested rejection reuse, changed evidence, expiry, unauthorized approval, and duplicate execution.
+- [x] Full validation: `python -m pytest -q` -> 178 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Implement approval interrupt/resume and durable audit events.
+- Exact next task: design the approval pause, resume, and one-time execution flow.
+### Module 13 durable approval implementation evidence
+- [x] Added durable approval interrupt/resume store and audit events.
+- [x] Tested awaiting approval, one-time execution, duplicate resume, crash marker, rejection, and sanitized failures.
+- [x] Hardened rejected approvals and failed execution so they cannot be silently reused.
+- [x] Full validation: `python -m pytest -q` -> 186 passed, 1 skipped; Ruff check and format check passed.
+- [ ] Complete Module 13 final conceptual review and workflow-boundary validation.
+- Exact next task: explain why UI approval is insufficient, analyze stale/unauthorized approvals, and review duplicate resume behavior.
+### Module 13 final review and completion
+- [x] Explained authentication, authorization, human approval, exact action fingerprints, and separation of duties.
+- [x] Explained stale approvals, rejected-fingerprint blocking, duplicate resume, and uncertain external execution.
+- [x] Implementation and validation complete: `python -m pytest -q` -> 186 passed, 1 skipped; Ruff check and format check passed.
+- Status: Completed.
+- Known limitation: external execution reconciliation is not implemented because remediation remains simulated.
+- Exact next task: begin Module 14 on reliability, security, and adversarial behavior.
