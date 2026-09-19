@@ -9,6 +9,7 @@ from incidentlens.telemetry import (
     AgentIncidentFixture,
     TelemetryQueryError,
     TelemetryQueryResult,
+    build_incident_error,
     load_agent_fixture,
     records_for_trace,
     records_in_window,
@@ -93,6 +94,17 @@ def _query_id(args: MetricsQueryArgs) -> str:
 
 
 def _invalid_query(query_id: str, args: MetricsQueryArgs, message: str) -> TelemetryQueryResult:
+    error = TelemetryQueryError(
+        classification="bad_request",
+        message=message,
+        retryable=False,
+    )
+    error.incident_error = build_incident_error(
+        error,
+        component="tool_authorization",
+        correlation_id=f"telemetry-{query_id}",
+        classification_override="incident_scope_violation",
+    )
     return TelemetryQueryResult(
         schema_version="1.0",
         query_id=query_id,
@@ -100,7 +112,7 @@ def _invalid_query(query_id: str, args: MetricsQueryArgs, message: str) -> Telem
         tool_name="query_metrics",
         time_window={"start": args.start_time, "end": args.end_time},
         status="invalid_query",
-        error=TelemetryQueryError(classification="bad_request", message=message, retryable=False),
+        error=error,
     )
 
 
@@ -283,6 +295,17 @@ def _invalid_result(
 ) -> TelemetryQueryResult:
     if window is None:
         window = {"start": args.start_time, "end": args.end_time}
+    error = TelemetryQueryError(
+        classification="bad_request",
+        message=message,
+        retryable=False,
+    )
+    error.incident_error = build_incident_error(
+        error,
+        component="tool_authorization",
+        correlation_id=f"telemetry-{query_id}",
+        classification_override="incident_scope_violation",
+    )
     return TelemetryQueryResult(
         schema_version="1.0",
         query_id=query_id,
@@ -290,5 +313,5 @@ def _invalid_result(
         tool_name=tool_name,
         time_window=window,
         status="invalid_query",
-        error=TelemetryQueryError(classification="bad_request", message=message, retryable=False),
+        error=error,
     )

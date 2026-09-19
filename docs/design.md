@@ -867,3 +867,148 @@ The local store returns `indeterminate` for uncertain execution and does not yet
 
 #### Next design step
 Threat-model retries, prompt injection, tool-result poisoning, cross-incident authorization, and safe logging in Module 14.
+
+### Module 14 telemetry error mapping increment
+- Status: In Progress
+
+#### Design change
+Telemetry query errors now optionally carry the shared provider-neutral `IncidentError`. Timeout and dependency classifications map to stable IncidentLens categories, while cross-incident fixture requests remain `invalid_query` results with a terminal `incident_scope_violation` classification.
+
+#### Verification
+Telemetry-focused validation passed 26 tests; full validation passed 197 tests with one live test skipped; Ruff and formatting checks passed.
+
+#### Known limitations after this increment
+Raw exception redaction, audit-safe persistence, and live backend timeout injection remain unimplemented. Existing telemetry results retain their lower-level classifications for compatibility.
+
+#### Next design step
+Add deterministic redaction and safe logging before errors or diagnostic context cross persistence, audit, or user-facing boundaries.
+
+### Module 14 redaction and safe-error increment
+- Status: In Progress
+
+#### Design change
+Added bounded text sanitization at the shared error boundary. Common database connection strings, secret/token/API-key/authorization assignments, and customer identifiers are replaced before user-facing error construction. Telemetry error mapping now sanitizes backend messages before creating `IncidentError`.
+
+#### Verification
+Focused redaction, telemetry, and approval validation passed; full validation passed 199 tests with one live test skipped; Ruff and formatting checks passed.
+
+#### Known limitations after this increment
+The current sanitizer is text-oriented and pattern-based. It does not yet recursively redact arbitrary structured telemetry or diagnostic payloads, and no centralized logging sink exists.
+
+#### Next design step
+Add field-aware redaction tests for nested payloads, headers, exception chains, and audit serialization before introducing broader diagnostic logging.
+
+### Module 14 field-aware redaction validation
+- Status: In Progress
+
+#### Design change
+The error boundary now provides recursive structured-data sanitization and chained-exception sanitization for diagnostic/audit copies. Sensitive mapping keys and text patterns are redacted while ordinary fields remain available for debugging. Executable action plans and fingerprints are not rewritten by the sanitizer.
+
+#### Verification
+Focused redaction and audit tests passed 18 tests; full validation passed 202 tests with one live test skipped; Ruff and formatting checks passed.
+
+#### Known limitations after this increment
+The sanitizer is still pattern-based and is not a substitute for field-level authorization or a centralized secure diagnostic sink.
+
+#### Next design step
+Add controlled adversarial tests for prompt injection, hidden-ground-truth leakage, and retry storms.
+
+### Module 14 adversarial validation
+- Status: In Progress
+
+#### Verification
+Runbook retrieval tests confirm injection-like content remains inert data with unchanged tool permissions. Fixture projection tests confirm hidden ground truth is excluded from agent context. Retry-storm tests bound 20 failing investigations to 40 total model attempts under a two-attempt per-run policy. Full validation passed 203 tests with one live test skipped.
+
+#### Known limitations after this increment
+The retry bound is currently per agent run; a coordinator-wide shared retry budget and circuit breaker for live dependencies are not yet integrated.
+
+#### Next design step
+Add controlled partial-backend outage and circuit-breaker recovery tests, preserving useful evidence from healthy dependencies.
+
+### Module 14 circuit breaker and partial-backend recovery
+- Status: In Progress
+
+#### Design change
+Added a deterministic `CircuitBreaker` with closed, open, and half-open states and injected-clock recovery tests. Parallel investigation accepts dependency-specific breakers; an open specialist dependency fails fast without preventing healthy sibling branches from completing.
+
+#### Verification
+Circuit-breaker and partial-backend focused validation passed 12 tests; full validation passed 207 tests with one live test skipped; Ruff and formatting checks passed.
+
+#### Known limitations after this increment
+Breaker state is currently passed per specialist role rather than owned by a coordinator registry keyed by backend, tenant, and environment. User-visible partial status remains represented at branch-result level.
+
+#### Next design step
+Connect breaker state to coordinator policy, failure-matrix classifications, and explicit user-visible partial/inconclusive report status.
+
+### Module 14 coordinator-owned circuit-breaker registry
+- Status: In Progress
+
+#### Design change
+Circuit state is now owned by a coordinator-provided `CircuitBreakerRegistry` keyed by backend, tenant, and environment. Specialist branches resolve their backend breaker from task scope, so one tenant or environment cannot open the circuit for another while repeated failures share protection within the correct scope.
+
+#### Verification
+Registry and parallel-investigation validation passed 36 focused tests; full validation passed 209 tests with one live test skipped; Ruff and formatting checks passed.
+
+#### Known limitations after this increment
+Branch results expose dependency failure, but the coordinator has not yet promoted circuit state into a unified failure-matrix status or explicit user-facing partial/inconclusive report.
+
+#### Next design step
+Connect circuit outcomes to coordinator error classifications, partial report status, and uncertainty-aware synthesis.
+
+### Module 14 coverage-status propagation
+- Status: In Progress
+
+#### Design change
+Parallel aggregation now produces deterministic coverage status. Complete specialist coverage keeps a completed report; mixed healthy/unavailable branches force `inconclusive` and annotate the summary; absence of all successful branches produces `failed`. This prevents a model-generated completed status from hiding a dependency evidence gap.
+
+#### Verification
+Coverage and workflow-focused validation passed 34 tests; full validation passed 211 tests with one live test skipped; Ruff and formatting checks passed.
+
+#### Known limitations after this increment
+The coverage helper is implemented at the parallel aggregation boundary but is not yet wired into the main LangGraph report-synthesis node or a unified failure matrix.
+
+#### Next design step
+Connect coverage status and circuit classifications to the main coordinator/report acceptance path.
+
+### Module 14 main workflow coverage integration
+- Status: In Progress
+
+#### Design change
+Specialist branch results are now carried in `IncidentGraphState` through an injected investigation runner. The LangGraph synthesis node applies coverage status before persisting evidence/report artifacts and before selecting the lifecycle terminal state. Partial specialist availability produces an `inconclusive` report; zero successful branches produce `failed`.
+
+#### Verification
+Workflow coverage integration passed focused workflow tests; full validation passed 213 tests with one live test skipped; Ruff and formatting checks passed.
+
+#### Known limitations after this increment
+The investigation runner is injected for reproducible integration tests; production coordinator wiring and a complete failure matrix across model, telemetry, persistence, and authorization remain to be unified.
+
+#### Next design step
+Complete the Module 14 reliability/security review, then integrate the remaining failure classifications into one coordinator policy.
+
+### Module 14 final review and completion
+- Status: Completed
+
+#### Goal
+Make dependency failure and adversarial behavior explicit at deterministic boundaries so IncidentLens never converts unavailable evidence into negative evidence or unsupported causal certainty.
+
+#### Design change
+The main workflow now carries specialist branch results into graph state and applies deterministic coverage validation at the synthesis boundary. Mixed specialist outcomes preserve successful evidence but force an `inconclusive` report with an explicit limitation; zero successful branches produce a failed lifecycle because no grounded report can be produced. This is the implemented boundary for the circuit-open Metrics case: `OPEN` means no query was performed and the report may not claim resource saturation as established causation.
+
+#### Verification
+Final conceptual review, debugging task, and failure-matrix exercise passed. Full validation: `python -m pytest -q` -> 213 passed, 1 skipped. `python -m ruff check .` and `python -m ruff format --check .` passed.
+
+#### Known limitations after this module
+The workflow runner is injectable for deterministic tests, while production dependency wiring and a single coordinator-wide failure matrix remain future work. Circuit-breaker, error-contract, authorization, redaction, and coverage behaviors are implemented as separate boundaries and should be unified as live integrations are added.
+
+#### Diagram/Flow
+```mermaid
+flowchart LR
+  B[Specialist branches] --> F[Coordinator fan-in]
+  F --> C{Coverage status}
+  C -->|complete| S[Synthesize grounded report]
+  C -->|partial| I[Synthesize limited inconclusive report]
+  C -->|none| X[Fail workflow: no valid report]
+```
+
+#### Next design step
+Begin Module 15: define evaluation dimensions and baselines, then design ablations that test whether each specialist and resilience boundary improves grounded incident outcomes.

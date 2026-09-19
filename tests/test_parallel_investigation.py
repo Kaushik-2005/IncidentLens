@@ -3,12 +3,16 @@ from datetime import UTC, datetime
 
 import pytest
 
+from incidentlens.contracts import Hypothesis, InvestigationReport
 from incidentlens.coordination import InvestigationTask
 from incidentlens.parallel_investigation import (
     SpecialistBranchResult,
+    apply_coverage_to_report,
     run_branch,
     run_parallel,
+    summarize_coverage,
 )
+from incidentlens.reliability import CircuitBreaker, CircuitBreakerRegistry
 from incidentlens.specialists import SpecialistRole
 from incidentlens.telemetry import IncidentTimeWindow
 
@@ -104,6 +108,96 @@ def test_run_parallel_preserves_sibling_success_when_one_fails() -> None:
     assert statuses[SpecialistRole.LOGS] == "success"
     assert statuses[SpecialistRole.METRICS] == "failed"
     assert statuses[SpecialistRole.TRACES] == "success"
+
+
+def test_run_parallel_fails_open_branch_but_keeps_healthy_siblings() -> None:
+    metrics_breaker = CircuitBreaker(failure_threshold=1, recovery_timeout_seconds=10)
+    metrics_breaker.record_failure()
+
+    async def worker(_task):
+        return []
+
+    results = asyncio.run(
+        run_parallel(
+            [make_task_for_role(role) for role in SpecialistRole],
+            worker,
+            max_concurrency=3,
+            branch_timeout_seconds=1,
+            circuit_breakers={SpecialistRole.METRICS: metrics_breaker},
+        )
+    )
+
+    statuses = {result.role: result for result in results}
+    assert statuses[SpecialistRole.METRICS].status == "failed"
+    assert statuses[SpecialistRole.METRICS].error == "dependency circuit open"
+    assert statuses[SpecialistRole.LOGS].status == "success"
+    assert statuses[SpecialistRole.TRACES].status == "success"
+
+
+def test_run_parallel_uses_coordinator_registry_scope() -> None:
+    registry = CircuitBreakerRegistry(failure_threshold=1, recovery_timeout_seconds=10)
+    registry.get(
+        backend="metrics_backend", tenant_id="default-tenant", environment="production"
+    ).record_failure()
+
+    async def worker(_task):
+        return []
+
+    results = asyncio.run(
+        run_parallel(
+            [make_task_for_role(role) for role in SpecialistRole],
+            worker,
+            max_concurrency=3,
+            branch_timeout_seconds=1,
+            circuit_breaker_registry=registry,
+        )
+    )
+
+    statuses = {result.role: result.status for result in results}
+    assert statuses[SpecialistRole.METRICS] == "failed"
+    assert statuses[SpecialistRole.LOGS] == "success"
+    assert statuses[SpecialistRole.TRACES] == "success"
+
+
+def test_partial_coverage_downgrades_report_to_inconclusive() -> None:
+    report = InvestigationReport(
+        incident_id="incident-001",
+        summary="The dependency appears to be the likely cause.",
+        evidence=[],
+        hypotheses=[
+            Hypothesis(
+                statement="The dependency caused the failure.",
+                confidence="medium",
+            )
+        ],
+        status="completed",
+    )
+    results = [
+        SpecialistBranchResult(role=SpecialistRole.LOGS, status="success"),
+        SpecialistBranchResult(
+            role=SpecialistRole.METRICS,
+            status="failed",
+            error="dependency circuit open",
+        ),
+    ]
+
+    coverage = summarize_coverage(results)
+    downgraded = apply_coverage_to_report(report, results)
+
+    assert coverage.status == "inconclusive"
+    assert downgraded.status == "inconclusive"
+    assert "metrics_agent" in downgraded.summary
+
+
+def test_no_successful_branches_produce_failed_coverage() -> None:
+    results = [
+        SpecialistBranchResult(role=SpecialistRole.LOGS, status="failed"),
+        SpecialistBranchResult(role=SpecialistRole.METRICS, status="timeout"),
+    ]
+
+    coverage = summarize_coverage(results)
+
+    assert coverage.status == "failed"
 
 
 def test_run_parallel_rejects_invalid_concurrency() -> None:

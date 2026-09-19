@@ -3,6 +3,7 @@ from enum import StrEnum
 from pydantic import BaseModel, Field
 
 from incidentlens.contracts import InvestigationReport
+from incidentlens.parallel_investigation import SpecialistBranchResult
 
 
 class LifecycleStatus(StrEnum):
@@ -24,6 +25,7 @@ class IncidentGraphState(BaseModel):
     evidence_references: list[str] = Field(default_factory=list)
     artifact_references: list[str] = Field(default_factory=list)
     report: InvestigationReport | None = None
+    specialist_results: list[SpecialistBranchResult] = Field(default_factory=list)
 
     model_calls: int = Field(default=0, ge=0)
     tool_calls: int = Field(default=0, ge=0)

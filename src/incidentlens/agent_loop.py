@@ -13,6 +13,7 @@ from incidentlens.contracts import (
     ToolCall,
     ToolObservation,
 )
+from incidentlens.errors import IncidentError
 from incidentlens.tools import ToolRegistry
 
 
@@ -42,11 +43,17 @@ class ModelProviderError(AgentLoopError):
     """Raised when the model provider fails before returning a response."""
 
     def __init__(
-        self, message: str, *, retryable: bool, failure_kind: ProviderFailureKind | None = None
+        self,
+        message: str,
+        *,
+        retryable: bool,
+        failure_kind: ProviderFailureKind | None = None,
+        incident_error: IncidentError | None = None,
     ) -> None:
         super().__init__(message)
         self.retryable = retryable
         self.failure_kind = failure_kind
+        self.incident_error = incident_error
 
 
 class MaxStepsExceededError(AgentLoopError):
@@ -130,6 +137,10 @@ def run_agent_loop_with_metadata(
             provider_retry.attempts = model_calls
         except ModelProviderError as exc:
             provider_retry.attempts = model_calls
+            if exc.incident_error is not None:
+                exc.incident_error = exc.incident_error.model_copy(
+                    update={"attempt_count": model_calls}
+                )
             if exc.retryable and model_retries < max_model_retries:
                 delay_ms = min(retry_backoff_base_ms * (2**model_retries), max_retry_delay_ms)
                 provider_retry.retries += 1

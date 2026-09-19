@@ -1,7 +1,9 @@
 from langgraph.checkpoint.memory import InMemorySaver
 
 from incidentlens.contracts import Evidence, Hypothesis, InvestigationReport
+from incidentlens.parallel_investigation import SpecialistBranchResult
 from incidentlens.persistence import ArtifactStore
+from incidentlens.specialists import SpecialistRole
 from incidentlens.workflow_graph import build_incident_graph
 from incidentlens.workflow_state import LifecycleStatus
 
@@ -98,6 +100,43 @@ def test_graph_fails_when_report_factory_errors() -> None:
 
     assert result["status"] == LifecycleStatus.FAILED
     assert result["error"] == "report synthesis failed"
+
+
+def test_graph_downgrades_report_when_specialist_coverage_is_partial() -> None:
+    def partial_runner(_state):
+        return [
+            SpecialistBranchResult(role=SpecialistRole.LOGS, status="success"),
+            SpecialistBranchResult(
+                role=SpecialistRole.METRICS,
+                status="failed",
+                error="dependency circuit open",
+            ),
+        ]
+
+    result = build_incident_graph(
+        report_factory,
+        investigation_runner=partial_runner,
+    ).invoke({"incident_id": "incident-001"})
+
+    assert result["status"] == LifecycleStatus.COMPLETED
+    assert result["report"]["status"] == "inconclusive"
+    assert "metrics_agent" in result["report"]["summary"]
+
+
+def test_graph_fails_when_no_specialist_coverage_exists() -> None:
+    def failed_runner(_state):
+        return [
+            SpecialistBranchResult(role=SpecialistRole.LOGS, status="failed"),
+            SpecialistBranchResult(role=SpecialistRole.METRICS, status="timeout"),
+        ]
+
+    result = build_incident_graph(
+        report_factory,
+        investigation_runner=failed_runner,
+    ).invoke({"incident_id": "incident-001"})
+
+    assert result["status"] == LifecycleStatus.FAILED
+    assert "No specialist evidence was available" in result["error"]
 
 
 def test_graph_rejects_invalid_initial_transition() -> None:

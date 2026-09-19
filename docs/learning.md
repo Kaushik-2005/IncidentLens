@@ -635,3 +635,44 @@ The learner correctly explained that evidence references belong in the action fi
 - [ ] Complete Module 13 final review and verify unauthorized/stale approval cases at the workflow boundary.
 ### Module 13 final review
 The learner correctly explained why frontend approval is not a backend security control, why changed action arguments or evidence require a new fingerprint and approval, and why rejected fingerprints must remain blocked. The learner correctly distinguished approver authorization from approval of one exact action. For a crash after `executing`, the learner identified the external side effect as ambiguous and recommended reconciliation rather than blind retry; this matches the implementation's `indeterminate` recovery result.
+
+### Module 14 telemetry error mapping implementation
+Added shared `IncidentError` mapping to telemetry query errors. Timeout, rate-limit, service-unavailable, authorization, and unknown dependency classifications now map to stable IncidentLens error categories. Cross-incident fixture requests retain the existing `invalid_query` result semantics while carrying a terminal `incident_scope_violation` error. Validation observed 26 focused telemetry tests and 197 full-suite tests passing with one live test skipped; Ruff and formatting checks passed.
+
+### Module 14 redaction and safe-error implementation
+Added `sanitize_text` and `IncidentError.from_message` in `src/incidentlens/errors.py`. The boundary redacts common connection strings, secret/token/API-key/authorization assignments, and customer identifiers, and bounds user-facing error text to 500 characters. Telemetry mappings sanitize backend messages before constructing shared errors. Focused redaction, telemetry, and approval tests passed; full validation observed 199 passed and 1 skipped.
+
+Known limitation: this is a deterministic error-text boundary, not a complete structured-payload redactor. Raw telemetry payloads and future diagnostic sinks need separate field-aware controls before production use.
+
+### Module 14 field-aware redaction validation
+Extended the redaction boundary with recursive `sanitize_structured` handling for nested mappings, lists, headers, customer identifiers, and diagnostic payloads. Added `sanitize_exception` coverage for chained causes and verified that audit-style payloads do not retain secret values. The sanitizer intentionally operates on diagnostic copies and does not mutate executable action plans or fingerprints.
+
+Validation: focused redaction/audit tests passed 18 tests; full suite passed 202 tests with one live test skipped; Ruff and formatting checks passed.
+
+### Module 14 adversarial validation
+Existing retrieval and fixture-loader tests verify that prompt-injection text remains inert runbook data and hidden ground truth is excluded from agent-visible fixtures. Added retry-storm coverage showing 20 failing investigations are each bounded to two model attempts, for a deterministic maximum of 40 calls. Focused adversarial validation passed 55 tests; full validation passed 203 tests with one live test skipped.
+
+### Module 14 circuit breaker and partial-backend recovery
+Added `CircuitBreaker` with closed, open, and half-open states, injected-clock tests, fail-fast behavior, and recovery probes. Parallel investigation branches can receive dependency-specific breakers; an open metrics dependency returns a failed branch while logs and traces continue successfully. Focused reliability validation passed 12 tests; full validation passed 207 tests with one live test skipped.
+
+Known limitation: breaker state is currently supplied per specialist branch. A coordinator-owned registry keyed by backend, tenant, and environment remains deferred.
+
+### Module 14 coordinator-owned circuit-breaker registry
+Replaced the per-branch limitation with `CircuitBreakerRegistry`, keyed by backend, tenant, and environment. Investigation tasks now carry tenant/environment scope, and parallel branches resolve shared dependency breakers through the coordinator registry. Tests verify same-scope sharing and tenant/environment isolation while healthy sibling branches continue during an open metrics circuit.
+
+Validation: focused registry/parallel tests passed 36 tests; full suite passed 209 tests with one live test skipped; Ruff and formatting checks passed.
+
+### Module 14 coverage-status propagation
+Added deterministic coverage summarization at the parallel aggregation boundary. All successful branches preserve `completed`; mixed success and unavailable/failed branches downgrade the report to `inconclusive` with unavailable specialist names; no successful branches produce `failed`. The report summary records the evidence-coverage limitation rather than presenting a completed diagnosis as fully supported.
+
+Validation: focused coverage/workflow tests passed 34 tests; full suite passed 211 tests with one live test skipped; Ruff and formatting checks passed.
+
+### Module 14 main workflow coverage integration
+Wired specialist branch results into `IncidentGraphState` and the LangGraph investigation/synthesis path. The synthesis boundary now applies deterministic coverage status before artifact persistence: mixed branch outcomes produce an `inconclusive` report, while no successful specialist produces a failed lifecycle with sanitized coverage context. Validation passed 213 tests with one live test skipped.
+
+### Module 14 final review and completion
+The final review established the central reliability invariant: an unavailable dependency is unknown evidence, not an empty successful query. The learner correctly assigned retry policy to the dependency/tool or model-adapter layer, global budgets and termination to the coordinator, and report acceptance to deterministic coverage/grounding validation. The learner also correctly explained that circuit-open Metrics evidence can yield a completed but explicitly inconclusive report when Logs and Traces support a valid limited result; workflow `FAILED` is reserved for inability to produce any valid report.
+
+The debugging exercise identified the fan-in-to-synthesis defect: if Metrics `unavailable` is lost, synthesis can promote resource saturation to unsupported causation. The implemented coverage boundary now preserves healthy evidence, names unavailable branches, downgrades mixed coverage to `inconclusive`, and fails only when no specialist evidence remains. The failure-matrix exercise correctly separated model-provider failure, dependency timeout, scope violation, prompt injection, and stale approval ownership and continuation rules.
+
+Validation: `python -m pytest -q` passed 213 tests with one skipped; Ruff check and format check passed. Remaining revision items are production coordinator wiring and a unified failure matrix across all dependency classes. Module 15 begins with evaluation dimensions, single-agent and deterministic baselines, ablations, and observability.

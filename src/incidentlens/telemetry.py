@@ -5,6 +5,13 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from incidentlens.errors import (
+    ErrorClassification,
+    ErrorComponent,
+    IncidentError,
+    sanitize_text,
+)
+
 SignalType = Literal["log", "metric", "trace"]
 
 
@@ -193,6 +200,33 @@ class TelemetryQueryError(BaseModel):
     ]
     message: str = Field(min_length=1)
     retryable: bool
+    incident_error: IncidentError | None = None
+
+
+def build_incident_error(
+    error: TelemetryQueryError,
+    *,
+    component: ErrorComponent,
+    correlation_id: str,
+    attempt_count: int = 0,
+    classification_override: ErrorClassification | None = None,
+) -> IncidentError:
+    classification_map: dict[str, ErrorClassification] = {
+        "timeout": "dependency_timeout",
+        "rate_limited": "service_unavailable",
+        "service_unavailable": "service_unavailable",
+        "authorization_failed": "incident_scope_violation",
+        "bad_request": "invalid_request",
+        "unknown_dependency_error": "service_unavailable",
+    }
+    return IncidentError(
+        classification=classification_override or classification_map[error.classification],
+        retryable=error.retryable,
+        component=component,
+        correlation_id=correlation_id,
+        attempt_count=attempt_count,
+        user_message=sanitize_text(error.message),
+    )
 
 
 class TelemetryQueryResult(BaseModel):

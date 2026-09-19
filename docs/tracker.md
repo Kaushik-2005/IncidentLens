@@ -2,12 +2,12 @@
 
 ## Current position
 - Roadmap: ../roadmap.md
-- Module: 14 - Reliability, security, and adversarial behavior
+- Module: 15 - Evaluation, ablations, observability, and optimization
 - Phase: Orient
 - Status: In Progress
 - Mode: Guided Learning
-- Exact current task: begin Module 14 with reliability, security, and adversarial threat boundaries.
-- Last completed evidence: Module 1 completed on 2026-09-10 through source review, learner explanations, project contract draft, failure-analysis review, and design record reconciliation.
+- Exact current task: orient Module 15 around evaluation design, ablations, observability, and optimization.
+- Last completed evidence: Module 14 completed through reliability/security implementation, final conceptual review, debugging analysis, failure-matrix design, and full validation.
 
 ## Module progress
 | Module | Title | Implementation | Understanding | Overall |
@@ -25,7 +25,7 @@
 | 11 | Runbook RAG and change intelligence | Completed | Checked | Completed |
 | 12 | Hypothesis formation, critique, and calibrated confidence | Completed | Checked | Completed |
 | 13 | Human oversight, authorization, and safe actions | Completed | Checked | Completed |
-| 14 | Reliability, security, and adversarial behavior | Not started | Not checked | Not started |
+| 14 | Reliability, security, and adversarial behavior | Completed | Checked | Completed |
 | 15 | Evaluation, ablations, observability, and optimization | Not started | Not checked | Not started |
 | 16 | Productization, live telemetry, and resume-grade capstone | Not started | Not checked | Not started |
 
@@ -38,14 +38,14 @@
 - [x] Relevant validation executed successfully
 - [x] Learning notes updated
 - [x] Design snapshot and module history reconciled with code
-- Sources/sections covered: `../roadmap.md` Module 2; Gemini API Function calling; Gemini API Structured outputs; LangChain Tools.
-- Learner explanation or answer: Learner traced the loop as orchestrator goal/context -> model reasons about needed evidence -> requests a permitted tool -> application validates/executes and returns bounded observation -> model evaluates observations -> requests more data or returns a structured finding with claims, evidence IDs, and confidence. Learner explained that model output is probabilistic and can be wrong or manipulated, so deterministic application code must validate permissions, arguments, schemas, and limits before executing tools. Learner also explained that Pydantic validates structure, not truth: schema-valid reports can contain invented claims, irrelevant evidence citations, or unsupported conclusions.
-- Exercise path/result: Implemented the deterministic loop, Gemini/LangChain adapter boundary, and baseline artifact runner with scripted offline tests. The rotated API key loaded successfully. After the message-protocol fix and one bounded retry, Gemini was reached twice but returned schema-invalid output; no live artifact was written.
-- Changed files: src/incidentlens/baseline.py, tests/test_baseline.py, tests/test_live_gemini.py, pyproject.toml, docs/tracker.md, docs/learning.md, docs/design.md; earlier Module 2 files remain listed in prior implementation history.
-- Commands and observed results: python -m pytest -q passed with 20 tests and one local google-auth/grpcio FutureWarning; python -m ruff check . passed; python -m ruff format --check . passed; python -m mypy src remains deferred because mypy is not installed; settings loaded the API key without exposing its value; the initial live call rejected gemini-2.5-flash with 404, so the configurable default was updated to gemini-3-flash-preview; offline retry tests passed; the bounded live retry reached the provider twice and ended with InvalidModelResponseError.
-- Design decision/evolution: Added a testable single-agent loop boundary. The model client can return raw tool requests or final reports; application code validates the response union, validates tool names/arguments, executes tools, validates results, tracks observations, propagates permitted tool execution errors, and enforces max-step termination. The Gemini/LangChain adapter boundary is implemented and tested offline with fake chat models; live reachability and signed-message replay were exercised, but live final-report parsing remains unsuccessful.
-- Untested assumptions: Live Gemini final-report parsing remains unsuccessful; provider token usage is extracted when LangChain exposes it; application-measured latency/model-call/tool-call metadata and offline artifact persistence are implemented; bounded retry handling is implemented; provider error classification remains covered by focused tests rather than broad live sampling; observed local google-auth/grpcio FutureWarning is not yet resolved; `mypy` remains deferred until installed or added to a development environment.
-- Weak concepts: Continue assessing retries, rate limits, secret handling, and live Gemini adapter behavior. Learner correctly explained model-client versus deterministic application-code responsibilities, distinguished malformed model output from permitted tool execution failure, and justified isolating Gemini/LangChain behind `ModelClient` to avoid provider coupling.
+- Sources/sections covered: `../roadmap.md` Module 14; reliability, security, failure-boundary, and adversarial-behavior requirements recorded in the module review.
+- Learner explanation or answer: Learner explained that timeout, circuit-open, and dependency failure mean unavailable evidence rather than an empty successful query; retry policy, coordinator budgets, and report acceptance have separate owners. Learner explained untrusted runbook handling, least privilege, incident scope isolation, sanitized diagnostics, and why unsupported causal claims must be downgraded when evidence is unavailable.
+- Exercise path/result: Completed the Module 14 failure-matrix exercise and debugging task for an overconfident report while the Metrics circuit was open. Implemented provider-neutral errors, redaction, scoped circuit breakers, adversarial retry bounds, coverage classification, and workflow synthesis integration.
+- Changed files: `src/incidentlens/errors.py`, `reliability.py`, model/telemetry/coordinator/workflow modules, focused tests, and the three required learning records.
+- Commands and observed results: `python -m pytest -q` -> 213 passed, 1 skipped; `python -m ruff check .` passed; `python -m ruff format --check .` passed.
+- Design decision/evolution: Coverage is deterministic at the coordinator/fan-in to synthesis boundary. Mixed specialist availability yields an explicitly `inconclusive` report; no successful evidence yields workflow `FAILED`; successful full coverage can remain `completed`.
+- Untested assumptions: Production coordinator wiring and a unified failure matrix for all live dependency classes remain future work; live outage behavior is represented by deterministic fixtures.
+- Weak concepts: No blocking Module 14 weakness identified. Continue practicing evaluation of evidence sufficiency and calibrated abstention in Module 15.
 - Optional work deferred: All optional advanced extensions.
 
 ## Module 1 Evidence History
@@ -64,14 +64,14 @@
 - Optional work deferred: All optional advanced extensions.
 
 ## Blockers and deviations
-- No Git repository metadata detected, so Git diff/status cannot be used as change evidence until a repository is initialized or the project is moved into one. Roadmap return point: Module 3 Orient.
+- Historical: Git metadata was unavailable during early Module 3 work. Resolved; repository status is now available and current changes are tracked in the working tree.
 
 ## Exact next session
-- Module and phase: Module 3 - Incident-response domain and realistic telemetry, Orient
-- File/function/section: roadmap.md Module 3 Learn section and fixtures/incidents/payment_latency.json
-- Next question or exercise: Explain what each telemetry signal can and cannot prove using the Module 3 fixture narratives.
-- Next build task: Orient Module 3 and design the telemetry-neutral internal schema.
-- Next validation command: `python -m pytest -q`; `python -m ruff check .`; `python -m ruff format --check .`; defer `python -m mypy src` until mypy is installed.
+- Module and phase: Module 15 - Evaluation, ablations, observability, and optimization, Orient
+- File/function/section: `roadmap.md` Module 15 and the current evaluation/fixture layout
+- Next question or exercise: Define correctness, evidence grounding, abstention, reliability, cost, and latency metrics for IncidentLens.
+- Next build task: Establish deterministic and single-agent baselines plus a small held-out evaluation set.
+- Next validation command: `python -m pytest -q`; `python -m ruff check .`; `python -m ruff format --check .`.
 
 
 
@@ -525,3 +525,79 @@
 - Status: Completed.
 - Known limitation: external execution reconciliation is not implemented because remediation remains simulated.
 - Exact next task: begin Module 14 on reliability, security, and adversarial behavior.
+
+### Module 14 telemetry error mapping implementation
+- [x] Added shared `IncidentError` mapping to `TelemetryQueryError`.
+- [x] Mapped timeout and dependency failures to stable provider-neutral classifications.
+- [x] Mapped cross-incident requests to terminal `incident_scope_violation` errors.
+- [x] Validation: 26 focused tests; 197 full-suite tests, 1 skipped; Ruff and formatting passed.
+- [ ] Add redaction and safe logging rules at persistence and audit boundaries.
+- Exact next task: identify and test raw exception, secret, customer-identifier, and hidden-ground-truth redaction paths.
+
+### Module 14 redaction and safe logging implementation
+- [x] Added bounded `sanitize_text` redaction for connection strings, secrets, tokens, authorization values, and customer identifiers.
+- [x] Added `IncidentError.from_message` so user-facing structured errors sanitize at construction.
+- [x] Applied sanitization to telemetry-to-error mapping.
+- [x] Validation: focused redaction/telemetry/audit tests passed; full suite `199 passed, 1 skipped`; Ruff and formatting passed.
+- [ ] Add field-aware redaction for structured telemetry/diagnostic payloads and verify hidden-ground-truth exclusion.
+- Exact next task: threat-test redaction against nested payloads, headers, exception chains, and audit serialization.
+
+### Module 14 field-aware redaction validation
+- [x] Added recursive structured-payload sanitization for nested fields and sensitive headers.
+- [x] Added chained-exception sanitization coverage.
+- [x] Added audit-style payload redaction tests without mutating executable action plans.
+- [x] Validation: 18 focused tests; 202 full-suite tests, 1 skipped; Ruff and formatting passed.
+- [ ] Add controlled adversarial tests for prompt injection, hidden-ground-truth leakage, and retry storms.
+- Exact next task: threat-test untrusted telemetry/runbook content and bounded failure behavior.
+
+### Module 14 adversarial validation
+- [x] Verified poisoned runbook text cannot expand the Runbook Agent tool allowlist.
+- [x] Verified hidden ground truth remains outside agent-visible fixture projections.
+- [x] Added retry-storm coverage across 20 failing investigations with per-run attempt bounds.
+- [x] Validation: 55 focused adversarial tests; 203 full-suite tests, 1 skipped; Ruff and formatting passed.
+- [ ] Add controlled partial-backend outage and circuit-breaker recovery behavior.
+- Exact next task: test safe degradation when one telemetry dependency is unavailable while other evidence continues.
+
+### Module 14 circuit breaker and partial-backend recovery
+- [x] Added deterministic closed/open/half-open circuit-breaker behavior with injected-clock tests.
+- [x] Added fail-fast branch behavior when a dependency circuit is open.
+- [x] Verified healthy specialist branches continue and produce successful partial results.
+- [x] Validation: 12 focused reliability tests; 207 full-suite tests, 1 skipped; Ruff and formatting passed.
+- [ ] Add coordinator-owned breaker registry and failure matrix integration.
+- Exact next task: connect dependency-specific breakers to coordinator policy and user-visible partial status.
+
+### Module 14 coordinator-owned circuit-breaker registry
+- [x] Added coordinator-owned breaker registry keyed by backend, tenant, and environment.
+- [x] Added tenant/environment scope fields to investigation tasks.
+- [x] Verified same-scope breaker sharing and cross-tenant/environment isolation.
+- [x] Verified healthy branches continue when a shared metrics breaker is open.
+- [x] Validation: 36 focused registry/parallel tests; 209 full-suite tests, 1 skipped; Ruff and formatting passed.
+- [ ] Add failure-matrix status propagation and explicit user-visible partial/inconclusive reporting.
+- Exact next task: connect branch circuit outcomes to coordinator failure classifications and report uncertainty.
+
+### Module 14 coverage-status propagation
+- [x] Added deterministic `completed`/`inconclusive`/`failed` coverage classification.
+- [x] Downgraded overconfident completed reports when specialist evidence is unavailable.
+- [x] Preserved healthy evidence and named unavailable specialist branches in the user-visible summary.
+- [x] Validation: 34 focused coverage/workflow tests; 211 full-suite tests, 1 skipped; Ruff and formatting passed.
+- [ ] Integrate coverage status with end-to-end coordinator/report synthesis and failure-matrix classifications.
+- Exact next task: connect coverage summary to the main investigation workflow and report acceptance path.
+
+### Module 14 main workflow coverage integration
+- [x] Added specialist branch results to graph state.
+- [x] Added an injected investigation runner to the LangGraph path.
+- [x] Applied coverage status before report artifact persistence and lifecycle completion.
+- [x] Verified partial reports become `inconclusive` and zero-coverage investigations fail.
+- [x] Validation: 213 full-suite tests, 1 skipped; Ruff and formatting passed.
+- [ ] Complete Module 14 reliability/security gate with failure-matrix integration and controlled adversarial recovery review.
+- Exact next task: run the Module 14 final conceptual review and identify remaining untested assumptions.
+
+### Module 14 final review and completion
+- [x] Explained timeout versus empty evidence, retry ownership, circuit-open uncertainty, and safe partial completion.
+- [x] Explained untrusted runbook boundaries, deterministic authorization, least privilege, incident scope isolation, and sanitized audit data.
+- [x] Passed the final conceptual review, debugging task, and failure-matrix design exercise.
+- [x] Verified coverage propagation prevents unsupported causal claims when Metrics is unavailable.
+- [x] Validation: `python -m pytest -q` -> 213 passed, 1 skipped; Ruff check and format check passed.
+- Status: Completed.
+- Known limitations: production coordinator wiring and a unified failure matrix for every dependency remain future integration work; live dependency behavior is represented by deterministic fixtures.
+- Exact next task: begin Module 15 with evaluation dimensions, baselines, and the first held-out scenario set.

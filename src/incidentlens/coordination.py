@@ -16,11 +16,13 @@ class InvestigationTask(BaseModel):
 
     task_id: str = Field(min_length=1)
     incident_id: str = Field(min_length=1)
+    tenant_id: str = Field(default="default-tenant", min_length=1)
     specialist_role: SpecialistRole
 
     objective: str = Field(min_length=1)
     time_window: IncidentTimeWindow
     affected_services: list[str] = Field(min_length=1)
+    environment: str = Field(default="production", min_length=1)
 
     allowed_tools: frozenset[str] = Field(min_length=1)
     allowed_signal_types: frozenset[Literal["log", "metric", "trace"]] = Field(min_length=1)

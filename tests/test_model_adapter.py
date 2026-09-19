@@ -3,9 +3,16 @@ from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 
-from incidentlens.agent_loop import ModelProviderError, run_agent_loop
+from incidentlens.agent_loop import (
+    ModelProviderError,
+    ProviderFailureKind,
+    run_agent_loop,
+)
 from incidentlens.contracts import IncidentInput, ToolCall, ToolObservation
-from incidentlens.model_adapter import GeminiLangChainModelClient
+from incidentlens.model_adapter import (
+    GeminiLangChainModelClient,
+    _provider_error_to_incident_error,
+)
 from incidentlens.tools import build_fixture_registry
 
 FIXTURE_PATH = "fixtures/incidents/payment_latency.json"
@@ -267,3 +274,39 @@ def test_adapter_parses_fenced_bare_report() -> None:
     response = adapter.invoke(incident(), [])
 
     assert response == {"kind": "final_report", "report": report}
+
+
+def test_provider_503_maps_to_sanitized_incident_error() -> None:
+    error = _provider_error_to_incident_error(
+        failure_kind=ProviderFailureKind.SERVICE_UNAVAILABLE,
+        attempt_count=1,
+    )
+
+    assert error.classification == "service_unavailable"
+    assert error.retryable is True
+    assert error.component == "model_provider"
+    assert error.attempt_count == 1
+    assert "temporarily unavailable" in error.user_message
+
+
+def test_provider_timeout_maps_to_dependency_timeout() -> None:
+    error = _provider_error_to_incident_error(
+        failure_kind=ProviderFailureKind.TIMEOUT,
+        attempt_count=2,
+    )
+
+    assert error.classification == "dependency_timeout"
+    assert error.retryable is True
+    assert error.attempt_count == 2
+    assert error.user_message == "The model service timed out."
+
+
+def test_unknown_provider_failure_is_terminal_and_sanitized() -> None:
+    error = _provider_error_to_incident_error(
+        failure_kind=None,
+        attempt_count=1,
+    )
+
+    assert error.retryable is False
+    assert error.component == "model_provider"
+    assert "provider" not in error.user_message.lower()

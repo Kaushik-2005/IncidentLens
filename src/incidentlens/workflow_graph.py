@@ -4,6 +4,10 @@ from typing import Any
 from langgraph.graph import END, START, StateGraph
 
 from incidentlens.contracts import InvestigationReport
+from incidentlens.parallel_investigation import (
+    SpecialistBranchResult,
+    apply_coverage_to_report,
+)
 from incidentlens.persistence import ArtifactStore, StoredArtifact
 from incidentlens.workflow_state import (
     IncidentGraphState,
@@ -13,6 +17,7 @@ from incidentlens.workflow_state import (
 )
 
 ReportFactory = Callable[[IncidentGraphState], InvestigationReport]
+InvestigationRunner = Callable[[IncidentGraphState], list[SpecialistBranchResult]]
 
 
 def build_incident_graph(
@@ -21,12 +26,13 @@ def build_incident_graph(
     checkpointer: Any | None = None,
     interrupt_before: list[str] | None = None,
     artifact_store: ArtifactStore | None = None,
+    investigation_runner: InvestigationRunner | None = None,
 ) -> Any:
     """Build a deterministic lifecycle graph with an injected report producer."""
     graph = StateGraph(IncidentGraphState)
     graph.add_node("validate", _node_to(LifecycleStatus.TRIAGING))
     graph.add_node("triage", _node_to(LifecycleStatus.INVESTIGATING))
-    graph.add_node("investigate", _node_to(LifecycleStatus.SYNTHESIZING))
+    graph.add_node("investigate", lambda state: _investigate(state, investigation_runner))
     graph.add_node("synthesize", lambda state: _synthesize(state, report_factory, artifact_store))
 
     graph.add_edge(START, "validate")
@@ -64,6 +70,8 @@ def _synthesize(
         return transition(state, LifecycleStatus.CANCELLED).model_dump()
     try:
         report = InvestigationReport.model_validate(report_factory(state))
+        if state.specialist_results:
+            report = apply_coverage_to_report(report, state.specialist_results)
         if report.incident_id != state.incident_id:
             raise ValueError("report incident does not match active incident")
         with_report = state.model_copy(update={"report": report})
@@ -103,9 +111,31 @@ def _synthesize(
                     ]
                 }
             )
+        if report.status == "failed":
+            failed = with_report.model_copy(update={"error": report.summary})
+            return transition(failed, LifecycleStatus.FAILED).model_dump()
         return transition(with_report, LifecycleStatus.COMPLETED).model_dump()
     except (RuntimeError, TypeError, ValueError):
         failed = state.model_copy(update={"error": "report synthesis failed"})
+        return transition(failed, LifecycleStatus.FAILED).model_dump()
+
+
+def _investigate(
+    raw_state: Any,
+    investigation_runner: InvestigationRunner | None,
+) -> dict[str, Any]:
+    state = IncidentGraphState.model_validate(raw_state)
+    if state.cancel_requested:
+        return transition(state, LifecycleStatus.CANCELLED).model_dump()
+    try:
+        next_state = transition(state, LifecycleStatus.SYNTHESIZING)
+        if investigation_runner is not None:
+            next_state = next_state.model_copy(
+                update={"specialist_results": investigation_runner(next_state)}
+            )
+        return next_state.model_dump()
+    except (RuntimeError, TypeError, ValueError):
+        failed = state.model_copy(update={"error": "investigation failed"})
         return transition(failed, LifecycleStatus.FAILED).model_dump()
 
 

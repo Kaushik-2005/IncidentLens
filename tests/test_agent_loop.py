@@ -24,6 +24,7 @@ from incidentlens.contracts import (
     ModelToolRequest,
     ToolCall,
 )
+from incidentlens.errors import IncidentError
 from incidentlens.tools import ToolExecutionError, UnknownToolError, build_fixture_registry
 
 FIXTURE_PATH = Path("fixtures/incidents/payment_latency.json")
@@ -306,3 +307,58 @@ def test_retryable_provider_failure_without_budget_propagates() -> None:
             max_steps=1,
             max_model_retries=0,
         )
+
+
+class AlwaysFailingModel:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def invoke(self, incident: IncidentInput, observations: list[BaseModel]) -> Any:
+        self.calls += 1
+        raise ModelProviderError(
+            "temporary provider outage",
+            retryable=True,
+            failure_kind=ProviderFailureKind.SERVICE_UNAVAILABLE,
+            incident_error=IncidentError(
+                classification="service_unavailable",
+                retryable=True,
+                component="model_provider",
+                correlation_id="err-exhausted-1",
+                user_message="The model service is temporarily unavailable.",
+            ),
+        )
+
+
+def test_exhausted_provider_failure_preserves_cumulative_incident_error() -> None:
+    model = AlwaysFailingModel()
+
+    with pytest.raises(ModelProviderError) as raised:
+        run_agent_loop_with_metadata(
+            incident=incident(),
+            model=model,
+            tools=build_fixture_registry(FIXTURE_PATH),
+            max_steps=2,
+            max_model_retries=1,
+        )
+
+    assert model.calls == 2
+    assert raised.value.incident_error is not None
+    assert raised.value.incident_error.attempt_count == 2
+    assert raised.value.incident_error.classification == "service_unavailable"
+
+
+def test_many_investigations_cannot_create_unbounded_retry_storm() -> None:
+    models = [AlwaysFailingModel() for _ in range(20)]
+
+    for model in models:
+        with pytest.raises(ModelProviderError):
+            run_agent_loop_with_metadata(
+                incident=incident(),
+                model=model,
+                tools=build_fixture_registry(FIXTURE_PATH),
+                max_steps=2,
+                max_model_retries=1,
+            )
+
+    assert sum(model.calls for model in models) == 40
+    assert all(model.calls <= 2 for model in models)

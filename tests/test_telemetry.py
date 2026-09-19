@@ -8,13 +8,53 @@ from pydantic import ValidationError
 from incidentlens.telemetry import (
     AgentIncidentFixture,
     EvaluatorIncidentFixture,
+    TelemetryQueryError,
     TelemetryRecord,
+    build_incident_error,
     load_agent_fixture,
     load_evaluator_fixture,
     project_agent_fixture,
     records_for_trace,
     records_in_window,
 )
+
+
+def test_telemetry_timeout_maps_to_shared_dependency_error() -> None:
+    error = TelemetryQueryError(
+        classification="timeout",
+        message="Metric evidence could not be retrieved within the allowed time.",
+        retryable=True,
+    )
+
+    shared = build_incident_error(
+        error,
+        component="metrics_backend",
+        correlation_id="telemetry-timeout-1",
+        attempt_count=2,
+    )
+
+    assert shared.classification == "dependency_timeout"
+    assert shared.retryable is True
+    assert shared.component == "metrics_backend"
+    assert shared.attempt_count == 2
+
+
+def test_telemetry_unknown_dependency_error_is_sanitized_and_terminal() -> None:
+    error = TelemetryQueryError(
+        classification="unknown_dependency_error",
+        message="The telemetry backend encountered an internal error.",
+        retryable=False,
+    )
+
+    shared = build_incident_error(
+        error,
+        component="metrics_backend",
+        correlation_id="telemetry-error-1",
+    )
+
+    assert shared.classification == "service_unavailable"
+    assert shared.retryable is False
+    assert "connection" not in shared.model_dump_json().lower()
 
 
 def fixture_payload() -> dict:

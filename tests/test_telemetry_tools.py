@@ -63,6 +63,9 @@ def test_metrics_tool_rejects_other_incident_scope() -> None:
     assert result.status == "invalid_query"
     assert result.error is not None
     assert result.error.retryable is False
+    assert result.error.incident_error is not None
+    assert result.error.incident_error.classification == "incident_scope_violation"
+    assert result.error.incident_error.retryable is False
 
 
 def test_query_args_rejects_unbounded_limit_and_window() -> None:

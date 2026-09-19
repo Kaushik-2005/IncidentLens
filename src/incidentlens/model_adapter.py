@@ -1,6 +1,7 @@
 import json
 from collections.abc import Mapping
 from typing import Any, Protocol, runtime_checkable
+from uuid import uuid4
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -8,6 +9,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from incidentlens.agent_loop import ModelProviderError, ProviderFailureKind
 from incidentlens.config import Settings
 from incidentlens.contracts import IncidentInput, ToolObservation
+from incidentlens.errors import IncidentError
 from incidentlens.tools import ToolRegistry
 
 
@@ -64,10 +66,15 @@ class GeminiLangChainModelClient:
             )
         except Exception as exc:
             failure_kind = _classify_provider_error(exc)
+            incident_error = _provider_error_to_incident_error(
+                failure_kind=failure_kind,
+                attempt_count=1,
+            )
             raise ModelProviderError(
                 "Gemini model invocation failed",
                 retryable=(failure_kind is not None),
                 failure_kind=failure_kind,
+                incident_error=incident_error,
             ) from exc
         self.last_usage = _extract_usage(response)
         if isinstance(response, AIMessage) and response.tool_calls:
@@ -79,22 +86,63 @@ DEFAULT_SYSTEM_INSTRUCTION = """You are the IncidentLens single-agent baseline.
 Request at most one declared tool at a time, or return a final report.
 For a final report, return ONLY this JSON object with no Markdown fences or extra fields:
 {
-  "kind": "final_report",
-  "report": {
+    "kind": "final_report",
+    "report": {
     "incident_id": "...",
     "summary": "...",
     "evidence": [{"evidence_id": "E1", "source": "metric", "summary": "..."}],
     "hypotheses": [{
-      "statement": "...",
-      "confidence": "low|medium|high",
-      "supporting_evidence_ids": ["E1"],
-      "contradicting_evidence_ids": []
+        "statement": "...",
+        "confidence": "low|medium|high",
+        "supporting_evidence_ids": ["E1"],
+        "contradicting_evidence_ids": []
     }],
     "status": "completed|inconclusive|failed"
-  }
+    }
 }
 Every final claim must cite evidence IDs from the tool observations. Do not invent evidence IDs.
 """
+
+
+def _provider_error_to_incident_error(
+    *,
+    failure_kind: ProviderFailureKind | None,
+    attempt_count: int,
+) -> IncidentError:
+    correlation_id = f"model-{uuid4().hex}"
+
+    if failure_kind == ProviderFailureKind.TIMEOUT:
+        return IncidentError(
+            classification="dependency_timeout",
+            retryable=True,
+            component="model_provider",
+            correlation_id=correlation_id,
+            attempt_count=attempt_count,
+            user_message="The model service timed out.",
+        )
+
+    if failure_kind in {
+        ProviderFailureKind.SERVICE_UNAVAILABLE,
+        ProviderFailureKind.RATE_LIMITED,
+        ProviderFailureKind.CONNECTION_ERROR,
+    }:
+        return IncidentError(
+            classification="service_unavailable",
+            retryable=True,
+            component="model_provider",
+            correlation_id=correlation_id,
+            attempt_count=attempt_count,
+            user_message="The model service is temporarily unavailable.",
+        )
+
+    return IncidentError(
+        classification="service_unavailable",
+        retryable=False,
+        component="model_provider",
+        correlation_id=correlation_id,
+        attempt_count=attempt_count,
+        user_message="The model service failed to process the request.",
+    )
 
 
 def _build_messages(
