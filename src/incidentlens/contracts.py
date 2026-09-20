@@ -30,6 +30,7 @@ class Hypothesis(BaseModel):
     confidence: Confidence
     supporting_evidence_ids: list[str] = Field(default_factory=list)
     contradicting_evidence_ids: list[str] = Field(default_factory=list)
+    missing_evidence: list[str] = Field(default_factory=list)
 
 
 class InvestigationReport(BaseModel):
@@ -50,6 +51,29 @@ class InvestigationReport(BaseModel):
             if unknown_ids:
                 raise ValueError(f"hypothesis cites unknown evidence IDs: {sorted(unknown_ids)}")
         return self
+
+
+def validate_report_acceptance(report: InvestigationReport) -> InvestigationReport:
+    """Downgrade a report that explicitly admits an unresolved evidence obligation."""
+    if report.status != "completed":
+        return report
+    missing = [
+        hypothesis.statement
+        for hypothesis in report.hypotheses
+        if hypothesis.missing_evidence or not hypothesis.supporting_evidence_ids
+    ]
+    if not missing:
+        return report
+    return report.model_copy(
+        update={
+            "status": "inconclusive",
+            "summary": (
+                "The report contains hypotheses without sufficient supporting evidence; "
+                "causal conclusions were not promoted. "
+                f"{report.summary}"
+            ),
+        }
+    )
 
 
 class ToolCall(BaseModel):

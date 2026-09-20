@@ -1012,3 +1012,36 @@ flowchart LR
 
 #### Next design step
 Begin Module 15: define evaluation dimensions and baselines, then design ablations that test whether each specialist and resilience boundary improves grounded incident outcomes.
+
+### Pre-Module 15 integration gap closure
+- Status: In Progress
+
+#### Design change
+Closed several boundary gaps identified by the repository-wide review. The model loop now accepts a shared coordinator budget and consumes it before every model invocation, including retries. Retry jitter can be injected without weakening the maximum delay. Specialist branch results preserve structured `IncidentError` metadata for circuit-open, timeout, and sanitized dependency failures. Checkpoints validate both application state version and tool-contract version before resume, with a safe recovery mapping for incompatible contracts. Specialist role registries now derive directly from the role allowlists and fixture backend.
+
+#### Ownership and boundary decisions
+The coordinator-owned budget remains the authority that can prevent an adapter invocation. The retry layer may classify and schedule a permitted retry, but it cannot bypass the budget. The parallel coordinator preserves dependency error metadata rather than reducing it to empty findings. Recovery rejects incompatible tool contracts before any model or tool node executes.
+
+#### Verification and evidence
+Edited source and test files compile successfully with the configured Python interpreter; `git diff --check` passed. Full pytest and Ruff checks are currently unverified because the active shell lacks those installed packages. New tests cover budget refusal, role-registry allowlists, structured circuit-open results, and unsupported tool-contract recovery.
+
+#### Known limitations after this increment
+The main graph still supports injected producers for deterministic tests, but it now also accepts a graph-facing `CoordinatorRuntime` that composes bounded parallel specialist execution. The full model-backed specialist worker and mandatory model-driven verifier remain evaluation targets; deterministic report acceptance now downgrades explicit unresolved evidence requirements before lifecycle completion.
+
+#### Next design step
+Connect the runtime to model-backed specialist workers and the verifier, then instrument the composed path for Module 15 evaluation and ablation.
+
+### Pre-Module 15 coordinator composition completion
+- Status: Completed
+
+#### Design change
+Completed the remaining pre-evaluation runtime seams. Shared budgets now cover both model attempts and tool executions. Workflow state preserves sanitized structured failure details. `specialist_runtime.py` provides the bounded adapter from role-specific model clients and registries to coordinator findings, while `CoordinatorRuntime` performs scope-checked parallel fan-out/fan-in. `change_tools.py` adds a bounded, incident-scoped `list_changes` capability, backed by reproducible change and runbook fixtures.
+
+#### Failure and security implications
+Budget exhaustion prevents the corresponding invocation before execution. Specialist reports without evidence-linked hypotheses do not become coordinator findings. Cross-incident change requests are rejected by the tool handler. Checkpoint files missing a tool-contract version are treated as legacy v1 and rejected by default rather than silently upgraded.
+
+#### Verification and evidence
+Added tests for tool budgets, structured workflow errors, coordinator composition, role registries, checkpoint contract rejection, and change-tool scope/window validation. Edited Python files compile successfully and `git diff --check` passes; full pytest/Ruff execution remains pending until dependencies are installed in the active environment.
+
+#### Known limitations after this module
+The model-backed worker is provider-neutral and requires caller-supplied role adapters. Deterministic report acceptance is mandatory; model-backed verifier quality comparison is an evaluation target for Module 15. FastAPI/live telemetry remain Module 16.

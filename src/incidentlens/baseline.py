@@ -1,10 +1,12 @@
 import json
+from collections.abc import Callable
 from pathlib import Path
 
 from pydantic import BaseModel
 
 from incidentlens.agent_loop import (
     AgentRunMetadata,
+    ModelCallBudget,
     ModelClient,
     run_agent_loop_with_metadata,
 )
@@ -29,6 +31,9 @@ def run_baseline(
     max_model_retries: int = 0,
     retry_backoff_base_ms: int = 0,
     max_retry_delay_ms: int = 2000,
+    retry_jitter_fn: Callable[[int], int] | None = None,
+    model_budget: ModelCallBudget | None = None,
+    tool_budget: ModelCallBudget | None = None,
     output_dir: str | Path,
 ) -> tuple[BaselineArtifact, Path]:
     """Run the baseline and save its validated report and measurements as JSON."""
@@ -40,6 +45,9 @@ def run_baseline(
         max_model_retries=max_model_retries,
         retry_backoff_base_ms=retry_backoff_base_ms,
         max_retry_delay_ms=max_retry_delay_ms,
+        retry_jitter_fn=retry_jitter_fn,
+        model_budget=model_budget,
+        tool_budget=tool_budget,
     )
     artifact = BaselineArtifact(
         incident=incident,

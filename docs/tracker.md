@@ -599,5 +599,22 @@
 - [x] Verified coverage propagation prevents unsupported causal claims when Metrics is unavailable.
 - [x] Validation: `python -m pytest -q` -> 213 passed, 1 skipped; Ruff check and format check passed.
 - Status: Completed.
-- Known limitations: production coordinator wiring and a unified failure matrix for every dependency remain future integration work; live dependency behavior is represented by deterministic fixtures.
+- Known limitations: live dependency behavior is represented by deterministic fixtures; model-backed verifier comparison, evaluation instrumentation, and product APIs remain roadmap work.
 - Exact next task: begin Module 15 with evaluation dimensions, baselines, and the first held-out scenario set.
+
+### Pre-Module 15 integration gap closure
+- [x] Added coordinator-supplied shared model-call budget enforcement before every model invocation and retry.
+- [x] Added injectable bounded retry jitter.
+- [x] Preserved structured dependency error metadata through specialist branch results and circuit-open fan-in.
+- [x] Added role-specific least-privilege fixture registries.
+- [x] Added checkpoint tool-contract-version rejection and sanitized recovery mapping.
+- [x] Added focused tests for these boundaries.
+- [x] Static validation: edited Python files compiled successfully; `git diff --check` passed.
+- [ ] Rerun full pytest and Ruff checks when the project environment is available.
+- [x] Added graph-facing `CoordinatorRuntime` composition for bounded specialist fan-out/fan-in.
+- [x] Added deterministic report acceptance downgrade for explicit unresolved evidence requirements.
+- [x] Added shared tool-budget enforcement and sanitized workflow error details.
+- [x] Added model-backed specialist-worker composition and bounded incident-scoped `list_changes` tooling.
+- [x] Added reproducible runbook and change fixtures.
+- Known limitation: the model-backed specialist worker requires caller-supplied role adapters, while model-backed verifier quality comparison and Module 15 evaluation instrumentation remain future work.
+- Exact next task: start Module 15 with deterministic report-acceptance versus verifier comparisons and baseline measurements.

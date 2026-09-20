@@ -95,12 +95,15 @@ For a final report, return ONLY this JSON object with no Markdown fences or extr
         "statement": "...",
         "confidence": "low|medium|high",
         "supporting_evidence_ids": ["E1"],
-        "contradicting_evidence_ids": []
+        "contradicting_evidence_ids": [],
+        "missing_evidence": []
     }],
     "status": "completed|inconclusive|failed"
     }
 }
 Every final claim must cite evidence IDs from the tool observations. Do not invent evidence IDs.
+If a hypothesis requires evidence that was unavailable, list that requirement in the
+`missing_evidence` field and mark the report `inconclusive`; never treat missing evidence as evidence of absence.
 """
 
 

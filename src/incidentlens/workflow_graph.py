@@ -3,8 +3,10 @@ from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
-from incidentlens.contracts import InvestigationReport
+from incidentlens.contracts import InvestigationReport, validate_report_acceptance
+from incidentlens.errors import IncidentError
 from incidentlens.parallel_investigation import (
+    CoordinatorRuntime,
     SpecialistBranchResult,
     apply_coverage_to_report,
 )
@@ -27,12 +29,14 @@ def build_incident_graph(
     interrupt_before: list[str] | None = None,
     artifact_store: ArtifactStore | None = None,
     investigation_runner: InvestigationRunner | None = None,
+    coordinator_runtime: CoordinatorRuntime | None = None,
 ) -> Any:
     """Build a deterministic lifecycle graph with an injected report producer."""
     graph = StateGraph(IncidentGraphState)
     graph.add_node("validate", _node_to(LifecycleStatus.TRIAGING))
     graph.add_node("triage", _node_to(LifecycleStatus.INVESTIGATING))
-    graph.add_node("investigate", lambda state: _investigate(state, investigation_runner))
+    runner = investigation_runner or coordinator_runtime
+    graph.add_node("investigate", lambda state: _investigate(state, runner))
     graph.add_node("synthesize", lambda state: _synthesize(state, report_factory, artifact_store))
 
     graph.add_edge(START, "validate")
@@ -70,6 +74,7 @@ def _synthesize(
         return transition(state, LifecycleStatus.CANCELLED).model_dump()
     try:
         report = InvestigationReport.model_validate(report_factory(state))
+        report = validate_report_acceptance(report)
         if state.specialist_results:
             report = apply_coverage_to_report(report, state.specialist_results)
         if report.incident_id != state.incident_id:
@@ -115,8 +120,8 @@ def _synthesize(
             failed = with_report.model_copy(update={"error": report.summary})
             return transition(failed, LifecycleStatus.FAILED).model_dump()
         return transition(with_report, LifecycleStatus.COMPLETED).model_dump()
-    except (RuntimeError, TypeError, ValueError):
-        failed = state.model_copy(update={"error": "report synthesis failed"})
+    except (RuntimeError, TypeError, ValueError) as exc:
+        failed = _failed_state(state, "report synthesis failed", exc)
         return transition(failed, LifecycleStatus.FAILED).model_dump()
 
 
@@ -134,9 +139,31 @@ def _investigate(
                 update={"specialist_results": investigation_runner(next_state)}
             )
         return next_state.model_dump()
-    except (RuntimeError, TypeError, ValueError):
-        failed = state.model_copy(update={"error": "investigation failed"})
+    except (RuntimeError, TypeError, ValueError) as exc:
+        failed = _failed_state(state, "investigation failed", exc)
         return transition(failed, LifecycleStatus.FAILED).model_dump()
+
+
+def _failed_state(
+    state: IncidentGraphState,
+    fallback_message: str,
+    error: Exception,
+) -> IncidentGraphState:
+    detail = getattr(error, "incident_error", None)
+    if not isinstance(detail, IncidentError):
+        detail = IncidentError.from_message(
+            classification="model_contract_violation",
+            retryable=False,
+            component="coordinator",
+            correlation_id=f"workflow-{state.incident_id}",
+            user_message=fallback_message,
+        )
+    return state.model_copy(
+        update={
+            "error": detail.user_message,
+            "error_detail": detail,
+        }
+    )
 
 
 def _route(raw_state: Any) -> str:

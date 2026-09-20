@@ -6,6 +6,7 @@ import pytest
 from incidentlens.contracts import Hypothesis, InvestigationReport
 from incidentlens.coordination import InvestigationTask
 from incidentlens.parallel_investigation import (
+    CoordinatorRuntime,
     SpecialistBranchResult,
     apply_coverage_to_report,
     run_branch,
@@ -89,6 +90,23 @@ def test_run_parallel_returns_stable_role_order() -> None:
     assert [result.role for result in results] == list(SpecialistRole)
 
 
+def test_coordinator_runtime_composes_parallel_results_for_graph_boundary() -> None:
+    async def worker(_task):
+        return []
+
+    runtime = CoordinatorRuntime(
+        [make_task_for_role(SpecialistRole.METRICS)],
+        worker,
+        max_concurrency=1,
+        branch_timeout_seconds=1,
+    )
+
+    results = runtime(type("State", (), {"incident_id": "incident-001"})())
+
+    assert len(results) == 1
+    assert results[0].role == SpecialistRole.METRICS
+
+
 def test_run_parallel_preserves_sibling_success_when_one_fails() -> None:
     async def worker(task):
         if task.specialist_role == SpecialistRole.METRICS:
@@ -128,8 +146,13 @@ def test_run_parallel_fails_open_branch_but_keeps_healthy_siblings() -> None:
     )
 
     statuses = {result.role: result for result in results}
-    assert statuses[SpecialistRole.METRICS].status == "failed"
+    assert statuses[SpecialistRole.METRICS].status == "dependency_error"
     assert statuses[SpecialistRole.METRICS].error == "dependency circuit open"
+    assert statuses[SpecialistRole.METRICS].incident_error is not None
+    assert (
+        statuses[SpecialistRole.METRICS].incident_error.classification
+        == "dependency_circuit_open"
+    )
     assert statuses[SpecialistRole.LOGS].status == "success"
     assert statuses[SpecialistRole.TRACES].status == "success"
 
@@ -154,7 +177,7 @@ def test_run_parallel_uses_coordinator_registry_scope() -> None:
     )
 
     statuses = {result.role: result.status for result in results}
-    assert statuses[SpecialistRole.METRICS] == "failed"
+    assert statuses[SpecialistRole.METRICS] == "dependency_error"
     assert statuses[SpecialistRole.LOGS] == "success"
     assert statuses[SpecialistRole.TRACES] == "success"
 

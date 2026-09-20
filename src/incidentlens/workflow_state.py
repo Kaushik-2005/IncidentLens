@@ -3,6 +3,7 @@ from enum import StrEnum
 from pydantic import BaseModel, Field
 
 from incidentlens.contracts import InvestigationReport
+from incidentlens.errors import IncidentError
 from incidentlens.parallel_investigation import SpecialistBranchResult
 
 
@@ -31,6 +32,7 @@ class IncidentGraphState(BaseModel):
     tool_calls: int = Field(default=0, ge=0)
 
     error: str | None = None
+    error_detail: IncidentError | None = None
 
 
 class InvalidTransitionError(ValueError):

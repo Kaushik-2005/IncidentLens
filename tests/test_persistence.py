@@ -15,6 +15,8 @@ from incidentlens.persistence import (
     CheckpointStore,
     StoredArtifact,
     UnsupportedStateVersionError,
+    UnsupportedToolContractVersionError,
+    checkpoint_error_to_incident_error,
 )
 
 
@@ -108,6 +110,29 @@ def test_unsupported_checkpoint_version_is_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(UnsupportedStateVersionError):
         store.load("inc-001")
+
+
+def test_unsupported_tool_contract_version_is_rejected_without_execution(tmp_path: Path) -> None:
+    store = CheckpointStore(tmp_path)
+    (tmp_path / "inc-001.json").write_text(
+        json.dumps(
+            {
+                "investigation_id": "inc-001",
+                "state_version": 1,
+                "tool_contract_version": 1,
+                "status": "investigating",
+                "artifact_refs": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(UnsupportedToolContractVersionError) as exc_info:
+        store.load("inc-001")
+
+    error = checkpoint_error_to_incident_error(exc_info.value, investigation_id="inc-001")
+    assert error.classification == "unsupported_checkpoint_version"
+    assert "No investigation actions were executed" in error.user_message
 
 
 def test_missing_artifact_is_rejected_as_unavailable(tmp_path: Path) -> None:

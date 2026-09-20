@@ -139,6 +139,21 @@ def test_graph_fails_when_no_specialist_coverage_exists() -> None:
     assert "No specialist evidence was available" in result["error"]
 
 
+def test_graph_downgrades_report_with_unresolved_evidence_requirement() -> None:
+    def unsupported_factory(_state):
+        report = report_factory(_state)
+        hypothesis = report.hypotheses[0].model_copy(
+            update={"missing_evidence": ["metric saturation evidence"]}
+        )
+        return report.model_copy(update={"hypotheses": [hypothesis]})
+
+    result = build_incident_graph(unsupported_factory).invoke({"incident_id": "incident-001"})
+
+    assert result["status"] == LifecycleStatus.COMPLETED
+    assert result["report"]["status"] == "inconclusive"
+    assert "unresolved evidence" in result["report"]["summary"]
+
+
 def test_graph_rejects_invalid_initial_transition() -> None:
     result = build_incident_graph(report_factory).invoke(
         {"incident_id": "incident-001", "status": LifecycleStatus.INVESTIGATING}

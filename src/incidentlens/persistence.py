@@ -4,6 +4,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from incidentlens.errors import IncidentError
+
 
 class StoredArtifact(BaseModel):
     artifact_id: str = Field(min_length=1)
@@ -16,6 +18,7 @@ class StoredArtifact(BaseModel):
 class Checkpoint(BaseModel):
     investigation_id: str = Field(min_length=1)
     state_version: int = Field(ge=1)
+    tool_contract_version: int = Field(default=2, ge=1)
     status: str = Field(min_length=1)
     artifact_refs: list[str] = Field(default_factory=list)
 
@@ -54,6 +57,10 @@ class CheckpointCorruptionError(CheckpointError):
 
 class UnsupportedStateVersionError(CheckpointError):
     """Raised when a checkpoint requires an unsupported state schema."""
+
+
+class UnsupportedToolContractVersionError(CheckpointError):
+    """Raised when a checkpoint uses an incompatible tool contract."""
 
 
 class ArtifactStore:
@@ -142,6 +149,7 @@ class ArtifactStore:
 
 class CheckpointStore:
     CURRENT_STATE_VERSION = 1
+    CURRENT_TOOL_CONTRACT_VERSION = 2
 
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root)
@@ -161,7 +169,13 @@ class CheckpointStore:
     def load(self, investigation_id: str) -> Checkpoint:
         path = self._path(investigation_id)
         try:
-            checkpoint = Checkpoint.model_validate(json.loads(path.read_text(encoding="utf-8")))
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(raw, dict):
+                raise TypeError("checkpoint must be an object")
+            # Checkpoints written before the tool-contract field existed are v1,
+            # not implicitly current. They must be rejected or migrated explicitly.
+            raw.setdefault("tool_contract_version", 1)
+            checkpoint = Checkpoint.model_validate(raw)
         except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
             raise CheckpointCorruptionError(f"checkpoint is invalid: {investigation_id}") from exc
 
@@ -169,4 +183,43 @@ class CheckpointStore:
             raise UnsupportedStateVersionError(
                 f"unsupported checkpoint state version: {checkpoint.state_version}"
             )
+        if checkpoint.tool_contract_version != self.CURRENT_TOOL_CONTRACT_VERSION:
+            raise UnsupportedToolContractVersionError(
+                "unsupported tool contract version: "
+                f"{checkpoint.tool_contract_version}"
+            )
         return checkpoint
+
+
+def checkpoint_error_to_incident_error(
+    error: CheckpointError,
+    *,
+    investigation_id: str,
+) -> IncidentError:
+    """Convert recovery failures to a safe, provider-neutral boundary error."""
+    if isinstance(error, UnsupportedToolContractVersionError):
+        return IncidentError.from_message(
+            classification="unsupported_checkpoint_version",
+            retryable=False,
+            component="checkpoint_recovery",
+            correlation_id=f"checkpoint-{investigation_id}",
+            user_message=(
+                "This investigation cannot be resumed because its saved state is "
+                "incompatible with the current tool contract. No investigation actions were executed."
+            ),
+        )
+    if isinstance(error, UnsupportedStateVersionError):
+        return IncidentError.from_message(
+            classification="unsupported_checkpoint_version",
+            retryable=False,
+            component="checkpoint_recovery",
+            correlation_id=f"checkpoint-{investigation_id}",
+            user_message="The saved investigation state is incompatible with the current application version.",
+        )
+    return IncidentError.from_message(
+        classification="invalid_request",
+        retryable=False,
+        component="checkpoint_recovery",
+        correlation_id=f"checkpoint-{investigation_id}",
+        user_message="The saved investigation state could not be recovered safely.",
+    )

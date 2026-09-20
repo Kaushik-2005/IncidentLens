@@ -11,11 +11,14 @@ from incidentlens.coordination import (
     SpecialistFindingMessage,
 )
 from incidentlens.reliability import CircuitBreaker, CircuitBreakerRegistry
+from incidentlens.errors import IncidentError
+from incidentlens.errors import ErrorComponent
 from incidentlens.specialists import SpecialistRole
 
 BranchStatus = Literal[
     "success",
     "timeout",
+    "dependency_error",
     "failed",
     "cancelled",
 ]
@@ -25,6 +28,44 @@ Worker = Callable[
     [InvestigationTask],
     Awaitable[list[SpecialistFindingMessage]],
 ]
+
+
+class CoordinatorRuntime:
+    """Synchronous graph-facing composition of task creation results and parallel fan-in."""
+
+    def __init__(
+        self,
+        tasks: list[InvestigationTask],
+        worker: Worker,
+        *,
+        max_concurrency: int,
+        branch_timeout_seconds: float,
+        global_timeout_seconds: float | None = None,
+        circuit_breaker_registry: CircuitBreakerRegistry | None = None,
+    ) -> None:
+        self.tasks = list(tasks)
+        self.worker = worker
+        self.max_concurrency = max_concurrency
+        self.branch_timeout_seconds = branch_timeout_seconds
+        self.global_timeout_seconds = global_timeout_seconds
+        self.circuit_breaker_registry = circuit_breaker_registry
+
+    def __call__(self, state: object) -> list["SpecialistBranchResult"]:
+        incident_id = getattr(state, "incident_id", None)
+        if incident_id is not None and any(
+            task.incident_id != incident_id for task in self.tasks
+        ):
+            raise ValueError("INVESTIGATION_SCOPE_MISMATCH")
+        return asyncio.run(
+            run_parallel(
+                self.tasks,
+                self.worker,
+                max_concurrency=self.max_concurrency,
+                branch_timeout_seconds=self.branch_timeout_seconds,
+                global_timeout_seconds=self.global_timeout_seconds,
+                circuit_breaker_registry=self.circuit_breaker_registry,
+            )
+        )
 
 SPECIALIST_ORDER = {
     SpecialistRole.LOGS: 0,
@@ -46,6 +87,7 @@ class SpecialistBranchResult(BaseModel):
     status: BranchStatus
     findings: list[SpecialistFindingMessage] = Field(default_factory=list)
     error: str | None = None
+    incident_error: IncidentError | None = None
 
 
 class InvestigationCoverage(BaseModel):
@@ -104,8 +146,18 @@ async def run_branch(
             if circuit_breaker is not None and not circuit_breaker.allow_request():
                 return SpecialistBranchResult(
                     role=task.specialist_role,
-                    status="failed",
+                    status="dependency_error",
                     error="dependency circuit open",
+                    incident_error=IncidentError.from_message(
+                        classification="dependency_circuit_open",
+                        retryable=False,
+                        component=_backend_component(task.specialist_role),
+                        correlation_id=f"circuit-{task.task_id}",
+                        user_message=(
+                            "Telemetry evidence was unavailable because the dependency "
+                            "circuit is open."
+                        ),
+                    ),
                 )
             try:
                 raw_findings = await asyncio.wait_for(
@@ -122,6 +174,13 @@ async def run_branch(
                     role=task.specialist_role,
                     status="timeout",
                     error="specialist deadline exceeded",
+                    incident_error=IncidentError.from_message(
+                        classification="dependency_timeout",
+                        retryable=True,
+                        component=_backend_component(task.specialist_role),
+                        correlation_id=f"timeout-{task.task_id}",
+                        user_message="Telemetry evidence could not be retrieved within the allowed time.",
+                    ),
                 )
             except (RuntimeError, TypeError, ValueError, ValidationError):
                 if circuit_breaker is not None:
@@ -130,6 +189,13 @@ async def run_branch(
                     role=task.specialist_role,
                     status="failed",
                     error="specialist execution failed",
+                    incident_error=IncidentError.from_message(
+                        classification="service_unavailable",
+                        retryable=False,
+                        component=_backend_component(task.specialist_role),
+                        correlation_id=f"branch-{task.task_id}",
+                        user_message="The specialist dependency failed during investigation.",
+                    ),
                 )
             except Exception:  # noqa: BLE001 - isolate unexpected worker failures
                 if circuit_breaker is not None:
@@ -138,6 +204,13 @@ async def run_branch(
                     role=task.specialist_role,
                     status="failed",
                     error="specialist execution failed",
+                    incident_error=IncidentError.from_message(
+                        classification="service_unavailable",
+                        retryable=False,
+                        component=_backend_component(task.specialist_role),
+                        correlation_id=f"branch-{task.task_id}",
+                        user_message="The specialist dependency failed during investigation.",
+                    ),
                 )
     except asyncio.CancelledError:
         return SpecialistBranchResult(
@@ -234,3 +307,11 @@ def aggregate_findings(
             except ValueError:
                 continue
     return inbox.findings
+
+
+def _backend_component(role: SpecialistRole) -> ErrorComponent:
+    return {
+        SpecialistRole.LOGS: "logs_backend",
+        SpecialistRole.METRICS: "metrics_backend",
+        SpecialistRole.TRACES: "traces_backend",
+    }[role]

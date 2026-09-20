@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "sections": [
+    {
+      "document_id": "checkout-runbook-v1",
+      "section_id": "timeouts",
+      "title": "Investigate checkout timeouts",
+      "service_name": "checkout-api",
+      "environment": "production",
+      "service_version": "2026.09.10",
+      "valid_from": "2026-01-01T00:00:00Z",
+      "valid_until": null,
+      "status": "active",
+      "content": "Correlate timeout logs with trace dependency spans and metric saturation. Treat missing telemetry as unknown."
+    }
+  ]
+}

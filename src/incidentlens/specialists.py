@@ -1,9 +1,16 @@
 from enum import StrEnum
+from pathlib import Path
 from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
 from incidentlens.contracts import Evidence, IncidentInput
+from incidentlens.telemetry_tools import (
+    build_logs_registry,
+    build_metrics_registry,
+    build_traces_registry,
+)
+from incidentlens.tools import ToolRegistry
 
 
 class SpecialistRole(StrEnum):
@@ -123,3 +130,13 @@ def validate_finding_evidence(
     if unknown_ids:
         raise ValueError(f"finding cites unknown evidence IDs: {sorted(unknown_ids)}")
     return finding
+
+
+def build_role_tool_registry(role: SpecialistRole, fixture_path: str | Path) -> ToolRegistry:
+    """Build the least-privileged recorded-fixture registry for one specialist."""
+    fixture_path = Path(fixture_path)
+    if role == SpecialistRole.LOGS:
+        return build_logs_registry(fixture_path)
+    if role == SpecialistRole.METRICS:
+        return build_metrics_registry(fixture_path)
+    return build_traces_registry(fixture_path)

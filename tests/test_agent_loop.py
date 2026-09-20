@@ -8,6 +8,7 @@ from pydantic import BaseModel, ValidationError
 from incidentlens.agent_loop import (
     InvalidModelResponseError,
     MaxStepsExceededError,
+    ModelBudgetExhaustedError,
     ModelProviderError,
     ProviderFailureKind,
     run_agent_loop,
@@ -25,6 +26,7 @@ from incidentlens.contracts import (
     ToolCall,
 )
 from incidentlens.errors import IncidentError
+from incidentlens.coordination import BudgetLedger
 from incidentlens.tools import ToolExecutionError, UnknownToolError, build_fixture_registry
 
 FIXTURE_PATH = Path("fixtures/incidents/payment_latency.json")
@@ -48,6 +50,25 @@ def incident() -> IncidentInput:
         start_time="2026-09-10T10:05:00Z",
         summary="Checkout latency and timeout errors increased.",
     )
+
+
+def test_shared_model_budget_blocks_invocation_before_retry_or_provider_call() -> None:
+    model = ScriptedModel([])
+    budget = BudgetLedger(max_model_calls=0, max_tool_calls=5)
+
+    with pytest.raises(ModelBudgetExhaustedError) as exc_info:
+        run_agent_loop_with_metadata(
+            incident=incident(),
+            model=model,
+            tools=build_fixture_registry(FIXTURE_PATH),
+            max_steps=3,
+            max_model_retries=2,
+            model_budget=budget,
+        )
+
+    assert model.calls == 0
+    assert budget.model_calls == 0
+    assert exc_info.value.incident_error.classification == "model_budget_exhausted"
 
 
 def final_report(evidence: list[Evidence]) -> ModelFinalReport:

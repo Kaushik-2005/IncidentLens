@@ -64,8 +64,13 @@ def sanitize_structured(value: Any) -> Any:
 ErrorClassification = Literal[
     "service_unavailable",
     "dependency_timeout",
+    "dependency_circuit_open",
+    "model_budget_exhausted",
+    "tool_budget_exhausted",
     "invalid_request",
     "incident_scope_violation",
+    "tool_not_authorized",
+    "approval_invalid",
     "model_contract_violation",
     "unsupported_checkpoint_version",
 ]
@@ -73,9 +78,13 @@ ErrorClassification = Literal[
 ErrorComponent = Literal[
     "model_provider",
     "metrics_backend",
+    "logs_backend",
+    "traces_backend",
     "tool_authorization",
+    "coordinator",
     "model_adapter",
     "checkpoint_recovery",
+    "approval_boundary",
 ]
 
 

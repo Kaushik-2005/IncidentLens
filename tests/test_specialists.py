@@ -7,9 +7,12 @@ from incidentlens.specialists import (
     SpecialistFinding,
     SpecialistRole,
     build_specialist_context,
+    build_role_tool_registry,
     role_contracts,
     validate_finding_evidence,
 )
+
+FIXTURE_PATH = "fixtures/incidents/payment_latency.json"
 
 INCIDENT = IncidentInput(
     incident_id="incident-001",
@@ -30,6 +33,13 @@ def test_role_contracts_have_distinct_domains_and_tools() -> None:
         contracts[SpecialistRole.LOGS].allowed_signal_types
         != contracts[SpecialistRole.METRICS].allowed_signal_types
     )
+
+
+@pytest.mark.parametrize("role", list(SpecialistRole))
+def test_role_registry_contains_only_role_capabilities(role) -> None:
+    registry = build_role_tool_registry(role, FIXTURE_PATH)
+
+    assert registry.tool_names == role_contracts()[role].allowed_tools
 
 
 def test_context_contains_only_role_domain_evidence() -> None:

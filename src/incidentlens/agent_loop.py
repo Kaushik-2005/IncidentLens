@@ -1,5 +1,6 @@
 from enum import StrEnum
 from time import perf_counter, sleep
+from collections.abc import Callable
 from typing import Any, Protocol
 
 from pydantic import BaseModel, Field, ValidationError
@@ -60,6 +61,27 @@ class MaxStepsExceededError(AgentLoopError):
     """Raised when the model never reaches a final report within the step budget."""
 
 
+class ModelBudgetExhaustedError(AgentLoopError):
+    """Raised before invocation when the coordinator's shared model budget is empty."""
+
+    def __init__(self, incident_error: IncidentError) -> None:
+        super().__init__(incident_error.user_message)
+        self.incident_error = incident_error
+
+
+class ToolBudgetExhaustedError(AgentLoopError):
+    """Raised before tool execution when the shared tool budget is empty."""
+
+    def __init__(self, incident_error: IncidentError) -> None:
+        super().__init__(incident_error.user_message)
+        self.incident_error = incident_error
+
+
+class ModelCallBudget(Protocol):
+    def consume(self, *, model_calls: int = 0, tool_calls: int = 0) -> None:
+        """Consume one permitted model call or raise when the shared budget is exhausted."""
+
+
 class ModelClient(Protocol):
     def invoke(self, incident: IncidentInput, observations: list[BaseModel]) -> Any:
         """Return the model's next raw tool request or final report."""
@@ -94,12 +116,16 @@ def run_agent_loop(
     model: ModelClient,
     tools: ToolRegistry,
     max_steps: int,
+    model_budget: ModelCallBudget | None = None,
+    tool_budget: ModelCallBudget | None = None,
 ) -> InvestigationReport:
     return run_agent_loop_with_metadata(
         incident=incident,
         model=model,
         tools=tools,
         max_steps=max_steps,
+        model_budget=model_budget,
+        tool_budget=tool_budget,
     ).report
 
 
@@ -112,6 +138,9 @@ def run_agent_loop_with_metadata(
     max_model_retries: int = 0,
     retry_backoff_base_ms: int = 0,
     max_retry_delay_ms: int = 2000,
+    retry_jitter_fn: Callable[[int], int] | None = None,
+    model_budget: ModelCallBudget | None = None,
+    tool_budget: ModelCallBudget | None = None,
 ) -> AgentRunResult:
     if max_steps < 1:
         raise ValueError("max_steps must be at least 1")
@@ -132,6 +161,23 @@ def run_agent_loop_with_metadata(
 
     while model_calls < max_steps:
         model_calls += 1
+        if model_budget is not None:
+            try:
+                model_budget.consume(model_calls=1)
+            except ValueError as exc:
+                raise ModelBudgetExhaustedError(
+                    IncidentError.from_message(
+                        classification="model_budget_exhausted",
+                        retryable=False,
+                        component="coordinator",
+                        correlation_id=f"model-budget-{model_calls}",
+                        attempt_count=model_calls - 1,
+                        user_message=(
+                            "Model execution stopped because the configured model-call budget "
+                            "was exhausted."
+                        ),
+                    )
+                ) from exc
         try:
             raw_response = model.invoke(incident, observations)
             provider_retry.attempts = model_calls
@@ -143,6 +189,8 @@ def run_agent_loop_with_metadata(
                 )
             if exc.retryable and model_retries < max_model_retries:
                 delay_ms = min(retry_backoff_base_ms * (2**model_retries), max_retry_delay_ms)
+                if retry_jitter_fn is not None:
+                    delay_ms = min(max_retry_delay_ms, max(0, retry_jitter_fn(delay_ms)))
                 provider_retry.retries += 1
                 if exc.failure_kind is not None:
                     provider_retry.retryable_failures.append(exc.failure_kind)
@@ -180,6 +228,23 @@ def run_agent_loop_with_metadata(
                 ),
             )
 
+        if tool_budget is not None:
+            try:
+                tool_budget.consume(tool_calls=1)
+            except ValueError as exc:
+                raise ToolBudgetExhaustedError(
+                    IncidentError.from_message(
+                        classification="tool_budget_exhausted",
+                        retryable=False,
+                        component="coordinator",
+                        correlation_id=f"tool-budget-{len(observations) + 1}",
+                        attempt_count=len(observations),
+                        user_message=(
+                            "Tool execution stopped because the configured tool-call budget "
+                            "was exhausted."
+                        ),
+                    )
+                ) from exc
         result = tools.execute(response.tool_call.name, response.tool_call.arguments)
         observations.append(
             ToolObservation(
