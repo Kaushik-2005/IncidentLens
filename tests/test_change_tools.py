@@ -5,7 +5,6 @@ import pytest
 
 from incidentlens.change_tools import ChangeQueryArgs, build_changes_registry
 
-
 FIXTURE = Path("fixtures/changes/payment_latency.json")
 
 

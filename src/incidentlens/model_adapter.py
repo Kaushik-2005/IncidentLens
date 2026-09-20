@@ -20,7 +20,10 @@ class ChatModel(Protocol):
 
 @runtime_checkable
 class BindableChatModel(ChatModel, Protocol):
-    def bind_tools(self, tools: list[dict[str, Any]]) -> ChatModel:
+    def bind_tools(
+        self,
+        tools: list[dict[str, Any]],
+    ) -> ChatModel:
         """Return a chat model configured with tool schemas."""
 
 
@@ -64,18 +67,18 @@ class GeminiLangChainModelClient:
                     self._assistant_messages,
                 )
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - provider SDK exception types vary
             failure_kind = _classify_provider_error(exc)
             incident_error = _provider_error_to_incident_error(
                 failure_kind=failure_kind,
                 attempt_count=1,
             )
             raise ModelProviderError(
-                "Gemini model invocation failed",
+                "Model provider invocation failed",
                 retryable=(failure_kind is not None),
                 failure_kind=failure_kind,
                 incident_error=incident_error,
-            ) from exc
+            ) from None
         self.last_usage = _extract_usage(response)
         if isinstance(response, AIMessage) and response.tool_calls:
             self._assistant_messages.append(response)
@@ -122,6 +125,16 @@ def _provider_error_to_incident_error(
             correlation_id=correlation_id,
             attempt_count=attempt_count,
             user_message="The model service timed out.",
+        )
+
+    if failure_kind == ProviderFailureKind.INVALID_REQUEST:
+        return IncidentError(
+            classification="invalid_request",
+            retryable=False,
+            component="model_provider",
+            correlation_id=correlation_id,
+            attempt_count=attempt_count,
+            user_message="The model provider rejected the request format.",
         )
 
     if failure_kind in {
@@ -256,6 +269,8 @@ def _classify_provider_error(exc: Exception) -> ProviderFailureKind | None:
         return ProviderFailureKind.SERVICE_UNAVAILABLE
     if status == 408 or "TIMEOUT" in str(exc).upper():
         return ProviderFailureKind.TIMEOUT
+    if status == 400:
+        return ProviderFailureKind.INVALID_REQUEST
     if isinstance(exc, (ConnectionError, TimeoutError)):
         return ProviderFailureKind.CONNECTION_ERROR
     return None

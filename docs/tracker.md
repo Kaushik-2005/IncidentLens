@@ -3,10 +3,10 @@
 ## Current position
 - Roadmap: ../roadmap.md
 - Module: 15 - Evaluation, ablations, observability, and optimization
-- Phase: Orient
+- Phase: Review
 - Status: In Progress
 - Mode: Guided Learning
-- Exact current task: orient Module 15 around evaluation design, ablations, observability, and optimization.
+- Exact current task: execute the development four-variant comparison with the configured model adapter.
 - Last completed evidence: Module 14 completed through reliability/security implementation, final conceptual review, debugging analysis, failure-matrix design, and full validation.
 
 ## Module progress
@@ -26,8 +26,33 @@
 | 12 | Hypothesis formation, critique, and calibrated confidence | Completed | Checked | Completed |
 | 13 | Human oversight, authorization, and safe actions | Completed | Checked | Completed |
 | 14 | Reliability, security, and adversarial behavior | Completed | Checked | Completed |
-| 15 | Evaluation, ablations, observability, and optimization | Not started | Not checked | Not started |
+| 15 | Evaluation, ablations, observability, and optimization | In progress | Checked | In progress |
 | 16 | Productization, live telemetry, and resume-grade capstone | Not started | Not checked | Not started |
+
+### Module 15 orientation and first knowledge check
+- [x] Explained outcome evaluation versus exact-path/trajectory evaluation.
+- [x] Learner correctly distinguished valid alternative investigation paths from unsupported final claims.
+- [x] Learner correctly assigned authorization and citation validity to deterministic evaluators, and semantic calibration to an LLM judge backed by grounding checks.
+- [x] Completed evaluator-contract exercise distinguishing invalid citations from insufficient causal support and calibrated abstention.
+- [x] Explained why held-out scenarios are required after tuning against development scenarios and how hidden ground truth must remain evaluator-only.
+- [x] Designed the deterministic, single-agent, full multi-agent, and no-verifier comparison matrix with quality and efficiency metrics.
+- [x] Added versioned evaluation scenario/result contracts and deterministic scoring functions.
+- [x] Added development/held-out scenario fixtures and an evaluator-to-agent safe projection loader.
+- [x] Added focused evaluation tests; static compilation and diff checks pass.
+- [x] Completed Module 15 final conceptual review and failure-analysis exercise.
+- [x] Explained why evaluator-owned scenarios and agent-visible projections must be separate, including loader/tool enforcement against indirect fixture leakage.
+- Exact next task: execute the development four-variant comparison with the configured model adapter.
+- [ ] Compare deterministic evaluators, rubric-based judges, and human review.
+- [x] Learner explained held-out interpretation, repeated-trial variability, verifier ablation evidence, and completed-but-inconclusive reporting.
+- [x] Added human/judge calibration contracts and disagreement reporting.
+- [x] Executed and persisted the frozen deterministic held-out run for `db-exhaustion-001`.
+- [x] Completed independent human review for the held-out deterministic sample; calibration recorded 1/1 agreement.
+- [x] Added a reproducible development comparison entry point for all four variants.
+- [x] Executed the development comparison; deterministic completed, single-agent completed with model calls, and both multi-agent variants recorded sanitized `service_unavailable` branch failures.
+- [x] Repeated the development comparison for 3 trials; deterministic remained stable, while multi-agent branch recovery remained 0.0 and single-agent recovery was 0.33.
+- [x] Added and executed `scripts\\run_development_comparison.py --offline --trials 3`; all four variants completed with recovery and trajectory success of 1.0, grounded rate and root-cause accuracy of 1.0, and unsupported-claim rate of 0.0.
+- Exact next task: collect a larger independent human-review sample and rerun a healthy live ablation before making verifier-effect claims.
+- [x] Final completion review passed: learner distinguished lifecycle completion from inconclusive diagnosis, deterministic citation/availability checks from semantic causal evaluation, and proposed a scoped `requires_metrics` invariant for rejecting unsupported high-confidence hypotheses.
 
 ## Current module completion evidence
 - [x] Required concepts learned from authoritative sources
@@ -63,14 +88,35 @@
 - Weak concepts: None blocking Module 1 completion. Continue reinforcing agent boundaries when implementation begins.
 - Optional work deferred: All optional advanced extensions.
 
+### Module 15 implementation evidence so far
+- [x] Added evaluator-owned `EvaluationScenario` and agent-safe `AgentScenarioView` contracts.
+- [x] Added development/held-out fixture manifest and leakage regression checks.
+- [x] Added deterministic report grounding, precision/recall, root-cause, abstention, and unsupported-claim checks.
+- [x] Added `evaluate_execution`, `aggregate_results`, and `run_variant_evaluation` for versioned variant runs.
+- [x] Added fixture identity validation so a scenario cannot silently load another incident's telemetry.
+- [x] Added focused tests for held-out deterministic evaluation, aggregate metrics, and fixture identity mismatch.
+- Commands and observed results: `py_compile` over `src/incidentlens` and `tests` passed; `git diff --check` passed. Full pytest/Ruff remain unverified because the current environment lacks those packages.
+- Remaining build task: add a real rubric-based LLM judge comparison and explicit cost/token instrumentation; healthy live Gemini ablation remains an evaluation limitation.
+
 ## Blockers and deviations
+- The active tool interpreter lacks `langgraph` and `pytest`, but the dependency-enabled interpreter executed the held-out script successfully. The persisted artifact is `artifacts/evaluation/held-out-final.json`.
+- A dependency-enabled run initially observed 11 failures and 14 passes. After correcting the evaluator/test contract mismatches, `python -m pytest tests\\test_evaluation.py -q` passed 25 tests.
+- The subsequent full-suite rerun passed after the legacy agent-fixture compatibility and report-summary wording fixes. The 25 focused evaluation tests and the full repository regression suite are green.
+- Independent human calibration artifact reports 1/1 agreement; sample size is one, so calibration confidence is limited.
+- The development comparison reached Gemini's free-tier request quota (`429 RESOURCE_EXHAUSTED`). The harness persists sanitized model/branch failures instead of exposing provider response bodies or aborting the full run. The multi-agent metrics are therefore not valid architecture-quality evidence until all branches complete successfully.
+- The subsequent 3-trial run persisted all variants, but multi-agent and no-verifier recovery remained `0.0`; single-agent recovery was `0.333`. This demonstrates provider/recovery instability and variance, not a valid verifier ablation or architecture-quality conclusion.
+- Evaluation scoring was tightened so a `failed` report is not counted as grounded or as a successful abstention merely because it contains no citations.
+- Learner reran `python -m pytest .\\tests\\test_evaluation.py -q` and the full `python -m pytest -q` suite after the error-contract fix; all tests passed.
+- Final validation after Ruff cleanup: learner reports `python -m ruff check .` and `python -m pytest -q` passed.
+- Offline scripted comparison completed 3 trials across all four variants; this validates evaluator/coordinator plumbing but does not measure real model reasoning or verifier value.
+- Final review exercise: `metrics.status=unavailable` plus `hypothesis.requires_metrics=true` must reject supported/high-confidence hypothesis states while preserving valid completed-but-inconclusive reports.
 - Historical: Git metadata was unavailable during early Module 3 work. Resolved; repository status is now available and current changes are tracked in the working tree.
 
 ## Exact next session
-- Module and phase: Module 15 - Evaluation, ablations, observability, and optimization, Orient
-- File/function/section: `roadmap.md` Module 15 and the current evaluation/fixture layout
-- Next question or exercise: Define correctness, evidence grounding, abstention, reliability, cost, and latency metrics for IncidentLens.
-- Next build task: Establish deterministic and single-agent baselines plus a small held-out evaluation set.
+- Module and phase: Module 15 - Evaluation, ablations, observability, and optimization, Review
+- File/function/section: `scripts/run_development_comparison.py`, persisted development run sets, and Module 15 evidence gate
+- Next question or exercise: Explain why the offline comparison validates plumbing but cannot establish real verifier value, and what evidence a healthy live ablation still requires.
+- Next build task: Add a larger independent human-review sample and explicit token/cost estimation before claiming Module 15 complete.
 - Next validation command: `python -m pytest -q`; `python -m ruff check .`; `python -m ruff format --check .`.
 
 
@@ -618,3 +664,11 @@
 - [x] Added reproducible runbook and change fixtures.
 - Known limitation: the model-backed specialist worker requires caller-supplied role adapters, while model-backed verifier quality comparison and Module 15 evaluation instrumentation remain future work.
 - Exact next task: start Module 15 with deterministic report-acceptance versus verifier comparisons and baseline measurements.
+
+### Module 15 live comparison controls
+- [x] Added `--variant` filtering to isolate live evaluation variants and reduce quota pressure.
+- [ ] Run an isolated live single-agent smoke test and record provider recovery plus usage.
+- [ ] Run isolated full multi-agent versus no-verifier ablation when provider capacity permits.
+- [x] Offline multi-agent validation: 3 trials completed with recovery, grounding, root-cause accuracy, abstention quality, and trajectory success all 1.0; unsupported claims 0.0.
+- [x] Offline no-verifier ablation: 3 trials matched the verifier-enabled metrics; recorded as neutral because the scripted model emits no adversarial claims.
+- Exact next task: run `python .\scripts\run_development_comparison.py --variant single_agent --trials 1` with Gemini, then inspect recovery and token usage before attempting the multi-agent ablation.

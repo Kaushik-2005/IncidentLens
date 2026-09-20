@@ -689,3 +689,124 @@ The remaining coordinator seams are now concrete: tool budgets are consumed befo
 Checkpoint recovery now validates both state version and tool-contract version. Unsupported tool contracts are rejected before resume, and a sanitized recovery error states that no investigation actions executed. Added tests cover shared-budget refusal, scoped role registries, structured circuit-open metadata, and incompatible tool-contract rejection.
 
 Validation available in the current environment: all edited Python files compiled successfully with `py_compile`; `git diff --check` passed. The full pytest/Ruff suite could not be rerun because the current shell has no Python packages installed; the prior recorded suite remains 213 passed, 1 skipped. The deterministic report acceptance boundary is now mandatory; Module 15 will compare this against model-backed verifier variants and measure the trade-offs.
+
+## Module 15 — Evaluation, ablations, observability, and optimization
+
+### Concept and why it exists
+Agent systems should be evaluated by whether they satisfy the intended outcome contract, not only by whether they reproduce one expected sequence of tool calls. Exact-path evaluation is useful for diagnosing process failures, but it should not reject a valid investigation merely because it gathered equivalent evidence in a different order.
+
+### IncidentLens application
+IncidentLens needs both outcome/grounding evaluation and trajectory/process evaluation. Outcome evaluation checks diagnosis correctness, evidence grounding, contradiction handling, calibrated confidence, and abstention. Trajectory evaluation checks permitted tools, incident scope, budgets, loops, duplicate work, latency, and recovery behavior.
+
+### Knowledge check
+The learner correctly explained that different valid tool orders should not automatically fail when the final report is grounded and calibrated. The learner also correctly explained that a temporally correlated deployment claim must fail outcome/grounding verification even if the agent followed the expected tool sequence. This establishes the distinction between how the system worked and whether the result is valid.
+
+### Sources
+- [LangSmith evaluation types](https://docs.langchain.com/langsmith/evaluation-types)
+- [Anthropic: How we built our multi-agent research system](https://www.anthropic.com/engineering/multi-agent-research-system)
+- [OpenTelemetry semantic conventions](https://opentelemetry.io/docs/specs/semconv/)
+
+### My questions, corrections, and revision items
+- Preserve multiple valid investigation paths while enforcing deterministic safety and grounding invariants.
+
+### Evaluation contract implementation
+Added `src/incidentlens/evaluation.py` with evaluator-owned scenarios, agent-visible scenario projections, variant/split contracts, result and aggregate schemas, grounding checks, evidence precision/recall, root-cause matching, abstention checks, split validation, and a versioned dataset loader. Added `fixtures/evaluation/scenarios.json` with development and held-out scenarios. The loader projects evaluator fixtures through the existing agent-safe telemetry boundary. Added `tests/test_evaluation.py` for hidden-label exclusion, citation grounding, metric calculations, abstention, split selection, dataset uniqueness, and run-configuration consistency. Aggregate calculation and runtime variant execution remain the next increment.
+
+### Agent/evaluator projection check
+The learner correctly explained that `AgentScenarioView` creates a structural trust boundary around evaluator-only ground truth and makes leakage regression-testable. Important refinement: the boundary must also be enforced by fixture loaders and tool registries; hiding fields in a Pydantic projection is insufficient if an agent can still retrieve the evaluator-owned fixture source directly.
+- Deterministic evaluators should enforce objective authorization, scope, citation, and budget invariants. A rubric-based judge may assess clarity and calibration, but only after deterministic grounding checks; human review calibrates whether judge scores match expert judgment.
+
+### Evaluator contract exercise
+The learner designed deterministic checks for citation existence, incident scope/provenance, unavailable-evidence propagation, completion invariants, and confidence/status consistency. They designed an LLM rubric covering causal support, evidence-gap handling, confidence calibration, alternatives, and claim wording. The expected result correctly downgraded the deployment-causation claim to `insufficient_evidence`/inconclusive while allowing lifecycle completion if the report explicitly communicated the limitation. The learner also correctly distinguished invalid citations from valid citations that do not establish causation.
+
+Implementation note: deterministic missing-evidence checks require explicit report obligations or a policy mapping claim types to required evidence categories; they must not infer causal sufficiency from citation existence alone.
+
+### Evaluation execution implementation
+Added the first executable evaluation harness in `src/incidentlens/evaluation.py`. `evaluate_execution` scores one variant execution against evaluator-only labels, while `aggregate_results` calculates quality, efficiency, and recovery aggregates without exposing hidden labels to the agent. `run_variant_evaluation` selects one split, projects each scenario through `AgentScenarioView`, invokes a supplied variant runner, and returns versioned per-scenario and aggregate results.
+
+The harness explicitly checks that a fixture's manifest incident ID matches the evaluation scenario ID. This prevents a mislabeled fixture from silently evaluating one incident under another scenario's ground truth. A held-out deterministic runner test demonstrates the execution path without claiming that the production workflow is already connected.
+
+Validation in the current environment: all edited Python files compiled with `py_compile`, and `git diff --check` passed. Full pytest and Ruff execution remains unverified because their packages are unavailable in the current shell.
+
+### Deterministic baseline and trajectory evaluator
+Connected the fixture-backed deterministic baseline through `deterministic_variant_runner`. It reads only the `AgentScenarioView` fixture path, converts available telemetry into evidence, and derives a bounded heuristic hypothesis from observable signal content; it never reads `hidden_ground_truth`.
+
+Added `TrajectoryTrace` and deterministic process checks for unauthorized tool requests, scope violations, and budget exhaustion. These are scored independently from grounded outcome metrics, so a valid report reached through a different permitted tool order can pass while an unsafe request fails even if the report looks correct. Aggregate results now include trajectory success, unauthorized-request count, and duplicate-call counts.
+
+Validation: `py_compile` and `git diff --check` passed. `python -m pytest tests\\test_evaluation.py -q` was attempted but could not run because `pytest` is not installed in the active interpreter.
+
+### Comparable variant runs and persistence
+Added `EvaluationRunSet` and `EvaluationRunStore` so results from multiple variants can be compared only when they use the same split and cover the same scenario IDs. `run_variant_suite` accepts provider-neutral runner adapters, evaluates each variant with the same evaluator, and optionally persists the complete versioned run set atomically. This gives the deterministic baseline, single-agent baseline, full multi-agent system, and no-verifier ablation a common comparison boundary without forcing their implementations into the evaluator.
+
+The adapter boundary is intentional: the evaluator owns scoring and comparability, while each workflow variant owns execution and supplies sanitized measurements. A run with different scenarios cannot be silently compared to another run.
+
+### Named workflow variant adapters
+Added `VariantRunnerAdapter` and `build_variant_adapters` to bind the deterministic baseline plus injected single-agent, full multi-agent, and no-verifier implementations to stable evaluator variant names. The adapter validates that each implementation returns the provider-neutral `VariantExecution` contract. This keeps orchestration-specific model calls outside the evaluator while making the four-way ablation wiring explicit and testable.
+
+### Single-agent baseline adapter
+Implemented `SingleAgentRunner` as the first concrete model-backed adapter. It creates an `IncidentInput` from `AgentScenarioView`, builds a registry from the projected fixture rather than the evaluator fixture, runs the existing bounded `run_agent_loop_with_metadata`, and records model/tool counts, latency, and requested tool names. The model client is injected, so tests can use a scripted model and production code can supply the configured provider adapter. Shared model/tool budgets remain injectable at this boundary.
+
+### Full multi-agent runner adapter
+Implemented `MultiAgentRunner` over `CoordinatorRuntime`. It deterministically builds Logs, Metrics, and Traces tasks from the agent-visible fixture, runs the injected specialist worker with bounded parallelism and deadlines, aggregates only validated findings, synthesizes an evidence-linked report, and applies branch coverage so dependency failures become `inconclusive` rather than empty evidence. The runner keeps worker/model construction injected; this makes the coordinator path testable without coupling the evaluator to a provider.
+
+### No-verifier ablation runner
+Added `MultiAgentWithoutVerifierRunner` as an explicit ablation. It shares task construction, specialist execution, fan-in, synthesis, coverage handling, and measurements with the multi-agent path, but deliberately has no verification step. This isolates the verifier's contribution: differences in unsupported claims or calibration can be compared while the investigation path remains otherwise constant.
+
+### Variant comparison and persistence
+Added `EvaluationComparison` and `compare_variant_runs`. The comparison requires both variants to be present in one validated `EvaluationRunSet`, then reports right-minus-left deltas for grounding, root-cause accuracy, unsupported claims, abstention, latency, model/tool calls, cost, and trajectory success. Persisting the aligned run set before comparing keeps the comparison reproducible and prevents mismatched scenario populations from producing misleading conclusions.
+
+### Verifier wiring for the full multi-agent variant
+Connected the existing deterministic `VerifierAgent` to `MultiAgentRunner`. Specialist findings are converted into verifier-owned `HypothesisCandidate` and `EvidenceTable` contracts; verification results then update report confidence, supporting/contradicting evidence, missing-evidence obligations, and report status. `MultiAgentWithoutVerifierRunner` explicitly disables this step while retaining the same specialist path. This makes the ablation boundary concrete: verifier impact is measured after identical fan-out/fan-in execution.
+
+### Repeated development trials
+Added `run_repeated_evaluation` and `aggregate_repeated_runs`. Each trial calls a runner factory so model/agent state is fresh, evaluates the same split, persists a unique run-set ID, and summarizes mean and population standard deviation for quality, efficiency, recovery, and trajectory metrics. The helper can be used on development scenarios during tuning; held-out scenarios remain a separate final evaluation population.
+
+### Frozen held-out evaluation
+Added `run_held_out_evaluation`, which hard-codes the `held_out` split and runs the frozen configuration once through the same persistence boundary. The held-out regression test confirms that only `db-exhaustion-001` is evaluated. This prevents a caller from accidentally treating development scenarios as final generalization evidence or repeatedly tuning against the held-out case.
+
+Execution note: the active interpreter could not execute the held-out run because `langgraph` is not installed; `pytest` is also unavailable. No held-out metric is claimed until the dependency-enabled command completes.
+
+Held-out execution was subsequently run with the configured dependency-enabled interpreter through `scripts/run_held_out_evaluation.py`. The run evaluated only `db-exhaustion-001` and persisted `artifacts/evaluation/held-out-final.json`. The deterministic variant produced grounded rate 1.0, root-cause accuracy 1.0, unsupported-claim rate 0.0, abstention quality 1.0, trajectory success 1.0, and recovery rate 1.0. Because this is one scenario and one deterministic variant, it does not establish broad system or multi-agent generalization.
+
+### Evaluation failure review
+The first dependency-enabled run reported 11 failures and 14 passes. The failures identified contract mismatches rather than one systemic runner failure: evaluator leakage must be checked structurally, report `Evidence` uses `source` rather than telemetry `signal_type`, malformed fixtures fail before identity checks, and missing signal branches correctly produce `inconclusive` coverage. These fixes were applied and the follow-up dependency-enabled run passed 25 evaluation tests.
+
+### Dataset leakage and held-out evaluation check
+The learner correctly explained that repeatedly tuning prompts against all five visible scenarios turns them into development data and can overfit the benchmark. They correctly identified the sixth untouched scenario as evidence of generalization rather than memorization of known failures. The learner also preserved the boundary between agent-visible scenario projections and evaluator-only hidden ground truth.
+
+### Baselines and ablations exercise
+The learner designed a four-variant comparison covering deterministic workflow, single-agent baseline, full multi-agent system, and multi-agent without verifier. The matrix tests architecture hypotheses rather than assuming multi-agent superiority. It correctly identifies the full-system versus no-verifier comparison as the key verifier ablation and pairs quality measures such as grounded diagnosis, unsupported claims, and abstention with latency, calls, tokens, cost, and recovery metrics.
+
+### Module 15 final conceptual review
+The learner correctly explained that one passing held-out scenario supports only a narrow generalization claim for the tested variant, not broad IncidentLens or multi-agent generalization. They correctly described a verifier benefit as a controlled, repeated ablation result with the quality improvement reported alongside latency, calls, tokens, and cost trade-offs. They explained why means must be paired with variability such as standard deviation for non-deterministic agents.
+
+For the causal-language review, the learner correctly separated deterministic citation/provenance validation from semantic calibration: valid deployment evidence can still support only temporal correlation, so the causal claim must be downgraded. In the failure-analysis exercise, they correctly classified a valid report with unavailable Metrics and an explicitly unverified saturation hypothesis as lifecycle `COMPLETED` with diagnostic `insufficient_evidence`, not as a grounding failure or unsupported claim. They correctly required the report to state that Metrics were unavailable because the circuit was open.
+
+Remaining Module 15 evidence: manually compare a sample with automated scores and record judge-calibration limitations. The frozen held-out artifact is now preserved.
+
+### Human/judge calibration contract
+Added `HumanReview`, `JudgeCalibrationResult`, and `calibrate_judge`. The contract records a blinded human judgment beside an automated qualitative judgment and reports agreement plus explicit disagreement IDs. This supports calibration without promoting an LLM judge—or a single reviewer—to ground-truth authority. A real review sample still needs to be collected and documented after the frozen held-out run.
+
+The human review artifact at `artifacts/evaluation/human_reviews.json` is now complete. Reviewer `reviewer-001` judged the deterministic diagnosis `supported`, agreeing with the automated judgment. Calibration produced 1/1 agreement (100%) with zero disagreements. This is still a one-sample calibration result and should not be generalized to all scenarios or judges.
+
+### Full-suite regression review
+The full suite exposed a compatibility gap: older evidence-only fixtures were still used by specialist registry tests after the evaluator loader became schema-specific. `load_agent_fixture` now adapts those legacy fixtures only at the safe agent boundary; `load_evaluator_fixture` remains strict and continues to require evaluator manifests and hidden-label separation. The report acceptance wording also preserves the established unresolved-evidence message contract.
+
+Validation: the dependency-enabled full test suite was rerun after these fixes and passed. Combined with the 25 focused evaluation tests, the evaluator and existing repository regression suite are green.
+
+### Development comparison entry point
+Added `scripts/run_development_comparison.py`. It constructs fresh Gemini-backed single-agent, full multi-agent, and no-verifier adapters for each trial, keeps the deterministic baseline in the same run set, runs only the development split, aggregates repeated-trial variability, and persists each run set under `artifacts/evaluation/`. It requires the configured `INCIDENTLENS_GOOGLE_API_KEY`; no live model result is claimed until the script is executed with that configuration.
+
+### Offline reproducibility comparison
+Added the `--offline` mode to the same entry point. It uses `OfflineEvaluationModel`, which reads only the safe agent fixture projection and returns deterministic structured reports. This separates evaluator and coordinator plumbing from Gemini quota, network, and provider variance.
+
+The three-trial offline run completed all four variants successfully. Deterministic, single-agent, full multi-agent, and no-verifier variants all achieved grounded rate, root-cause accuracy, abstention quality, recovery, and trajectory success of 1.0 on the two development scenarios. The verifier ablation therefore showed no difference in this scripted run: unsupported-claim rate was 0.0 for both variants. Full multi-agent used three model calls per scenario on average; the scripted model made no tool calls, so this is a reproducibility/plumbing result, not evidence that the real Gemini verifier improves diagnosis quality.
+
+The live Gemini comparison remains a separate failure record: quota exhaustion caused multi-agent recovery to remain 0.0 across three trials and single-agent recovery to be 0.33. Those runs must not be interpreted as architecture-quality evidence. A valid live comparison requires healthy branch completion and should report quality and provider recovery separately.
+
+### Module 15 final completion review
+The learner correctly explained that tool order is a trajectory property while grounded causal support is an outcome invariant. They distinguished offline evaluation-pipeline evidence from live Gemini generalization, explained why failed executions must not count as vacuously grounded, and described a controlled verifier ablation with repeated held-out trials and quality/cost trade-offs.
+
+In the final failure-analysis exercise, the learner correctly classified Metrics circuit-open plus Logs/Traces success as lifecycle `COMPLETED` with diagnostic `insufficient_evidence`. They separated deterministic citation and availability checks from LLM semantic causal evaluation. Their proposed invariant rejects a supported or high-confidence hypothesis only when `requires_metrics=true` and Metrics is unavailable, preserving valid completed-but-inconclusive reports.
+
+Module 15 remains implementation-incomplete because a real rubric-based LLM judge comparison and explicit token/cost estimation are not yet implemented; the offline scripted comparison is intentionally only a reproducibility and plumbing result.

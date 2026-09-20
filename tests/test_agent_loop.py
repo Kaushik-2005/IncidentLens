@@ -25,8 +25,8 @@ from incidentlens.contracts import (
     ModelToolRequest,
     ToolCall,
 )
-from incidentlens.errors import IncidentError
 from incidentlens.coordination import BudgetLedger
+from incidentlens.errors import IncidentError
 from incidentlens.tools import ToolExecutionError, UnknownToolError, build_fixture_registry
 
 FIXTURE_PATH = Path("fixtures/incidents/payment_latency.json")

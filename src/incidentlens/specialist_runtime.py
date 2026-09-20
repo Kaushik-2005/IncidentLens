@@ -4,10 +4,11 @@ from datetime import UTC
 from typing import Protocol
 
 from incidentlens.agent_loop import ModelCallBudget, ModelClient, run_agent_loop_with_metadata
+from incidentlens.contracts import IncidentInput
 from incidentlens.coordination import InvestigationTask, SpecialistFindingMessage
+from incidentlens.parallel_investigation import SpecialistWorkerResult
 from incidentlens.specialists import FindingKind, SpecialistRole
 from incidentlens.tools import ToolRegistry
-from incidentlens.contracts import IncidentInput
 
 
 class SpecialistModelFactory(Protocol):
@@ -21,7 +22,7 @@ def build_model_backed_worker(
     *,
     model_budgets: Mapping[SpecialistRole, ModelCallBudget] | None = None,
     tool_budgets: Mapping[SpecialistRole, ModelCallBudget] | None = None,
-) -> Callable[[InvestigationTask], Awaitable[list[SpecialistFindingMessage]]]:
+) -> Callable[[InvestigationTask], Awaitable[SpecialistWorkerResult]]:
     """Build the bounded worker used by ``CoordinatorRuntime``.
 
     The worker translates a task envelope into the provider-neutral IncidentInput,
@@ -29,7 +30,7 @@ def build_model_backed_worker(
     only evidence-linked hypotheses into coordinator findings.
     """
 
-    async def worker(task: InvestigationTask) -> list[SpecialistFindingMessage]:
+    async def worker(task: InvestigationTask) -> SpecialistWorkerResult:
         model = models[task.specialist_role]
         registry = registries[task.specialist_role]
         incident = IncidentInput(
@@ -82,6 +83,12 @@ def build_model_backed_worker(
                     ),
                 )
             )
-        return findings
+        return SpecialistWorkerResult(
+            findings=findings,
+            model_calls=result.metadata.model_calls,
+            tool_calls=result.metadata.tool_calls,
+            latency_ms=result.metadata.elapsed_ms,
+            requested_tools=result.metadata.requested_tools,
+        )
 
     return worker

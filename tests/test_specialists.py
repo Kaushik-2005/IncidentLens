@@ -6,8 +6,8 @@ from incidentlens.specialists import (
     FindingKind,
     SpecialistFinding,
     SpecialistRole,
-    build_specialist_context,
     build_role_tool_registry,
+    build_specialist_context,
     role_contracts,
     validate_finding_evidence,
 )

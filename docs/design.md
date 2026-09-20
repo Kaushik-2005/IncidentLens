@@ -13,10 +13,10 @@ IncidentLens is a learning project for designing, implementing, evaluating, and 
 - Keep lifecycle transitions, authorization, validation, budgets, and human approval in deterministic application code.
 
 ## Current architecture snapshot
-- Roadmap module and implementation status: Module 4 core gate completed; Module 3 completed; Module 2 completed. A local, testable single-agent loop boundary exists with a scripted model client, Pydantic contracts, a fixture-backed read-only tool, and focused tests. The Gemini/LangChain adapter boundary is implemented and tested offline; live reachability and signed-message replay were exercised, but live final-report parsing and baseline artifact persistence were verified.
+- Roadmap module and implementation status: Module 14 completed; Module 15 is in Build. The repository contains a deterministic single-agent baseline, provider-neutral telemetry tools, scoped specialist contracts and registries, parallel coordinator runtime, persistence/checkpoint boundaries, hypothesis/report acceptance, approval contracts, resilience/error boundaries, reproducible synthetic fixtures, and the first versioned evaluation harness.
 
 ### Component and agent summary
-Implemented Module 2 components:
+Implemented components:
 - `src/incidentlens/contracts.py`: Pydantic contracts for incidents, evidence, hypotheses, reports, and model responses.
 - `src/incidentlens/tools.py`: fixture-backed read-only tool and tool registry.
 - `src/incidentlens/agent_loop.py`: deterministic loop runner that calls a model client, validates model responses, executes validated tools, stores observations, propagates permitted tool execution failures, and enforces max-step termination.
@@ -24,20 +24,20 @@ Implemented Module 2 components:
 - src/incidentlens/telemetry.py: versioned provider-neutral telemetry and manifest contracts with evaluator-to-agent projection.
 - `fixtures/incidents/payment_latency.json`: small synthetic fixture.
 - `tests/test_agent_loop.py`: focused tests for happy path, unknown tools, malformed args, max-step termination, and invalid evidence references, malformed model output, and permitted tool execution errors.
+- `src/incidentlens/coordination.py` and `src/incidentlens/parallel_investigation.py`: task envelopes, bounded budgets, follow-up validation, scoped fan-out/fan-in, circuit-breaker integration, and `CoordinatorRuntime`.
+- `src/incidentlens/specialist_runtime.py`: provider-neutral worker composition using role-specific model clients and tool registries.
+- `src/incidentlens/hypotheses.py` and `src/incidentlens/contracts.py`: evidence-grounded hypothesis verification and deterministic report acceptance.
+- `src/incidentlens/persistence.py` and `src/incidentlens/approval.py`: bounded artifacts, checkpoint compatibility checks, approval fingerprints, resume protection, and sanitized audit events.
+- `src/incidentlens/errors.py` and `src/incidentlens/reliability.py`: sanitized provider-neutral errors and scoped circuit breakers.
 
-Proposed components:
-- Incident intake and lifecycle validator
-- Deterministic orchestrator/coordinator
-- Read-only telemetry tools
-- Specialist investigators for logs, metrics, traces, and deployment/change evidence
-- Evidence store
-- Verification component
-- Evidence-linked report writer
+Remaining proposed components:
+- Module 15 evaluation harness, ablations, observability, and cost estimation
+- Module 16 FastAPI job/API boundary, live OpenTelemetry integration, and local deployment
 
 ### Agent responsibilities, context, tools, and permissions
-No live LLM agent is implemented yet. The current model boundary is a `ModelClient` protocol used by tests with a scripted model. Future Gemini integration must implement this boundary without giving the model direct tool execution or permission authority.
+The `ModelClient` protocol and Gemini/LangChain adapter are implemented. Specialist workers receive role-scoped contexts and registries; deterministic coordinator code owns task scope, budgets, tool execution, lifecycle, and report acceptance. Model-backed specialist execution accepts caller-supplied role adapters and never receives direct execution authority.
 
-Proposed boundaries:
+Implemented boundaries:
 - Logs specialist: log evidence only unless explicitly delegated cross-signal context.
 - Metrics specialist: metric evidence only unless explicitly delegated cross-signal context.
 - Traces specialist: trace/span evidence only unless explicitly delegated cross-signal context.
@@ -46,7 +46,7 @@ Proposed boundaries:
 - Synthesis component: writes report claims only from structured findings and evidence IDs.
 
 ### State and artifact ownership
-Incident lifecycle state should be owned by application workflow code, not by free-form chat history. The baseline runner now writes a JSON output artifact containing the incident, validated report, and run metadata. This is an early output artifact, not general checkpointing or long-term persistence.
+Graph state owns lifecycle, bounded references, specialist branch results, usage counters, and sanitized failure details. `ArtifactStore` owns versioned evidence/report artifacts; `CheckpointStore` owns resumable state and rejects incompatible state/tool contracts. Long-term cross-investigation memory is intentionally not implemented.
 
 ### Incident investigation flow
 Top-level lifecycle: `created -> investigating -> awaiting_review -> completed | failed | cancelled`.
@@ -54,39 +54,39 @@ Top-level lifecycle: `created -> investigating -> awaiting_review -> completed |
 Possible internal phases inside `investigating`: triage, specialist investigation, aggregation, verification, and synthesis. These are not top-level states unless the roadmap is explicitly changed.
 
 ### Inter-agent contracts
-No inter-agent contracts exist yet. Module 2 introduced single-agent contracts for `IncidentInput`, `Evidence`, `Hypothesis`, `InvestigationReport`, `ToolCall`, and model responses. Reports validate that cited evidence IDs exist in the report evidence list. Future inter-agent contracts will extend these typed schemas.
+Versioned task envelopes, specialist findings, evidence tables, hypotheses, verification results, branch results, and provider-neutral errors are implemented. Findings are validated for task, incident, role, and evidence scope before aggregation.
 
 ### Persistence and recovery
-No persistence exists yet. Checkpointing and durable artifacts are deferred to later roadmap modules.
+Filesystem-backed artifacts and checkpoints are implemented and tested. LangGraph checkpoint integration supports interrupt/resume; incompatible state and tool-contract versions are rejected before execution. External transactional storage remains a Module 16 concern.
 
 ### Security and human-approval boundaries
 Core system is read-only. Any remediation remains proposed/simulated until later modules add explicit human approval bound to exact action arguments and evidence.
 
 ### Evaluation and observability
-No evaluation harness or observability exists yet. The current baseline loop has unit tests and captures application-measured latency, model-call count, and tool-call count. The baseline runner persists these with the validated report. Token use is captured when LangChain exposes standard usage metadata and remains null when unavailable; nested provider retry metadata records attempts, sanitized failure categories, retry count, and bounded delays; cost is not yet derived. The roadmap still requires baseline output and usage metadata once live model integration exists.
+Module 15 now includes evaluator-owned scenario contracts, safe agent projections, held-out fixture selection, deterministic grounding/abstention checks, aggregate metrics, a deterministic fixture-backed baseline runner, trajectory scoring, persisted comparable run sets, named adapters for all four comparison variants, a concrete `SingleAgentRunner` over the bounded agent loop, a `MultiAgentRunner` over `CoordinatorRuntime` with the existing deterministic `VerifierAgent`, an explicit `MultiAgentWithoutVerifierRunner` ablation, aligned variant delta calculations, repeated-trial aggregation with fresh runner factories, a frozen held-out evaluation entry point, human/judge calibration contracts, and an offline scripted model mode for reproducible plumbing comparisons. Gemini remains the sole live model provider. Failed reports are excluded from grounded and successful-abstention rates. Live provider failures remain visible through recovery and sanitized branch-error metrics. The specialist worker remains injected; graph-wide observability and trustworthy live cost estimation remain in progress.
 
 ### High-level diagram
 ```mermaid
 flowchart LR
-    User[User incident request] --> Intake[Planned intake and validation]
-    Intake --> Orchestrator[Planned deterministic orchestrator]
-    Orchestrator --> Logs[Planned logs specialist]
-    Orchestrator --> Metrics[Planned metrics specialist]
-    Orchestrator --> Traces[Planned traces specialist]
-    Orchestrator --> Changes[Planned change specialist]
-    Logs --> Evidence[Planned evidence store]
+    User[User incident request] --> Intake[Deterministic state validation]
+    Intake --> Orchestrator[CoordinatorRuntime]
+    Orchestrator --> Logs[Scoped logs worker]
+    Orchestrator --> Metrics[Scoped metrics worker]
+    Orchestrator --> Traces[Scoped traces worker]
+    Orchestrator --> Changes[Scoped change tool]
+    Logs --> Evidence[Evidence and findings]
     Metrics --> Evidence
     Traces --> Evidence
     Changes --> Evidence
-    Evidence --> Verify[Planned verifier]
-    Verify --> Report[Planned evidence-linked report]
+    Evidence --> Verify[Deterministic report acceptance]
+    Verify --> Report[Evidence-linked report]
 ```
 
 ### Known limitations
-- Live Gemini/LangChain integration, signed-message replay, retry handling, schema validation, and baseline artifact persistence were verified against synthetic telemetry.
-- Cost estimation and live telemetry backends are not implemented; the live synthetic baseline artifact is available.
-- No persistence, evaluation harness, or observability exists yet.
-- Git metadata is not available in the current directory.
+- Full pytest/Ruff validation must be rerun in an environment with project dependencies installed; the current environment only confirmed Python compilation and diff cleanliness.
+- Model-backed specialist workers require caller-supplied adapters, and model-backed verifier quality must be compared against deterministic acceptance in Module 15.
+- A centralized generic audit sink for every dependency event is not yet implemented; structured sanitized error data is available at the boundaries.
+- Evaluation, cost estimation, live telemetry, API productization, and deployment remain Modules 15–16 work.
 
 ## Module-by-module design history
 
@@ -1045,3 +1045,78 @@ Added tests for tool budgets, structured workflow errors, coordinator compositio
 
 #### Known limitations after this module
 The model-backed worker is provider-neutral and requires caller-supplied role adapters. Deterministic report acceptance is mandatory; model-backed verifier quality comparison is an evaluation target for Module 15. FastAPI/live telemetry remain Module 16.
+
+### Module 15 - Evaluation harness foundation
+- Status: In Progress
+
+#### Goal
+Evaluate IncidentLens outcomes and execution variants without leaking evaluator-only ground truth into agent-visible context.
+
+#### Design change
+Added `src/incidentlens/evaluation.py` with separate `EvaluationScenario` and `AgentScenarioView` contracts, development/held-out split validation, deterministic report scoring, aggregate metrics, and a pluggable `VariantRunner`. Added `fixtures/evaluation/scenarios.json` with development and held-out cases. Fixture loading validates that the manifest incident ID matches the evaluator scenario ID before projecting safe fields to an agent.
+
+#### Diagram/Flow
+```mermaid
+flowchart LR
+  Labels[EvaluationScenario + hidden labels] --> Score[Deterministic evaluator]
+  Fixture[Evaluator fixture] --> Project[AgentScenarioView projection]
+  Project --> Runner[Variant runner]
+  Runner --> Report[VariantExecution]
+  Report --> Score
+  Score --> Aggregate[Versioned EvaluationRun + aggregate metrics]
+```
+
+#### Why this matters
+The evaluator can check citation existence, grounding, root-cause match, abstention, and efficiency while the agent receives only legitimate incident context. A held-out split provides a test of generalization after tuning development scenarios. Aggregate metrics make quality and cost trade-offs visible across deterministic, single-agent, full multi-agent, and no-verifier variants.
+
+#### Verification
+Added `tests/test_evaluation.py` coverage for hidden-label exclusion, held-out deterministic execution, aggregate calculations, configuration consistency, and fixture identity mismatch. Edited Python files compile successfully with the configured interpreter and `git diff --check` passes. Full pytest/Ruff execution is unverified because the active shell lacks those packages.
+
+#### Known limitations after this increment
+The harness accepts named runner adapters, persists comparable results, calculates aligned variant deltas, supports fresh repeated development trials, exposes a held-out-only final entry point, and records automated-versus-human judgment disagreements. The deterministic baseline, single-agent adapter, coordinator-backed verifier-enabled multi-agent path, and explicit no-verifier ablation are connected. The frozen deterministic held-out artifact is persisted at `artifacts/evaluation/held-out-final.json`; its one-scenario result is not evidence of broad generalization. A real human review sample, model-backed verifier critique, cost estimation, and graph-wide observability remain future Module 15 increments.
+
+#### Next design step
+Connect the deterministic workflow runner, add trajectory invariants, and persist comparable variant results.
+
+### Module 15 offline comparison and live-failure accounting
+- Status: In Progress
+
+#### Goal
+Separate architecture/evaluator validation from provider quota and network instability, while ensuring failed model executions cannot inflate quality metrics.
+
+#### Design change
+Added `OfflineEvaluationModel` and `--offline` to `scripts/run_development_comparison.py`. The scripted model reads only safe projected telemetry, produces structured reports, and supports all four variants without Gemini calls. The model adapter suppresses raw provider exception chaining, and evaluation scoring treats `failed` reports as neither grounded nor successful abstentions.
+
+#### Diagram/Flow
+```mermaid
+flowchart LR
+  Scenario[Development scenarios] --> Mode{Evaluation mode}
+  Mode -->|offline| Scripted[Safe scripted model]
+  Mode -->|live| Gemini[Gemini adapter]
+  Scripted --> Variants[Four variant runners]
+  Gemini --> Variants
+  Variants --> Score[Deterministic scoring]
+  Score -->|failed execution| Recovery[Recovery/error metrics]
+  Score -->|valid report| Quality[Grounding/accuracy/abstention metrics]
+```
+
+#### Why this matters
+Provider failure is an execution/recovery result, not evidence that an architecture produces unsupported conclusions. The offline mode supplies a controlled regression signal for fan-out, verifier ablation wiring, persistence, and aggregation, while live runs remain necessary for real model quality.
+
+#### Verification and evidence
+`python -m py_compile` and `git diff --check` passed. The dependency-enabled offline three-trial comparison completed all variants with recovery and trajectory success of 1.0; grounded rate and root-cause accuracy were 1.0 for every variant. The live Gemini three-trial run recorded multi-agent recovery 0.0 and single-agent recovery 0.33 because of provider failures, so it is retained only as resilience evidence.
+
+#### Known limitations after this increment
+The scripted model is deterministic and intentionally does not measure semantic model reasoning, realistic tool selection, token use, or verifier value. Human calibration remains one reviewed held-out sample. A healthy multi-trial Gemini run and a larger held-out set are still required before making generalization or verifier-effect claims.
+
+#### Next design step
+Complete the Module 15 evidence gate with a larger independent review sample, a healthy live ablation when provider capacity permits, and explicit cost/token instrumentation.
+
+### Module 15 live evaluation controls
+- Status: In Progress
+
+#### Design change
+The development comparison retains provider-neutral `--variant` filtering and deterministic `--offline` mode while using the Gemini adapter directly. Live provider failures remain separate from report-quality metrics.
+
+#### Verification and known limitations
+Offline comparisons remain the reproducible evidence for evaluation plumbing. Live Gemini quality and verifier-effect claims require healthy repeated trials, held-out scenarios, and explicit token/cost instrumentation.

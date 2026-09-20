@@ -1,0 +1,12 @@
+{
+  "instructions": "This is a preliminary assistant review only, not independent human calibration. Replace reviewer_reference and human_judgment with an access-controlled human review before using calibration results as evidence.",
+  "reviews": [
+    {
+      "scenario_id": "db-exhaustion-001",
+      "variant": "deterministic",
+      "automated_judgment": "supported",
+      "human_judgment": "supported",
+      "reviewer_reference": "assistant-preliminary-review-not-human"
+    }
+  ]
+}

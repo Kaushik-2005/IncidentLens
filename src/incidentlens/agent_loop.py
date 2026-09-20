@@ -1,6 +1,6 @@
+from collections.abc import Callable
 from enum import StrEnum
 from time import perf_counter, sleep
-from collections.abc import Callable
 from typing import Any, Protocol
 
 from pydantic import BaseModel, Field, ValidationError
@@ -31,6 +31,7 @@ class ProviderFailureKind(StrEnum):
     SERVICE_UNAVAILABLE = "service_unavailable"
     TIMEOUT = "timeout"
     CONNECTION_ERROR = "connection_error"
+    INVALID_REQUEST = "invalid_request"
 
 
 class ProviderRetryMetadata(BaseModel):
@@ -96,6 +97,7 @@ class AgentRunMetadata(BaseModel):
     total_tokens: int | None = Field(default=None, ge=0)
     model_retries: int = Field(default=0, ge=0)
     provider_retry: ProviderRetryMetadata = Field(default_factory=ProviderRetryMetadata)
+    requested_tools: list[str] = Field(default_factory=list)
 
 
 class AgentRunResult(BaseModel):
@@ -225,6 +227,10 @@ def run_agent_loop_with_metadata(
                     ),
                     model_retries=model_retries,
                     provider_retry=provider_retry,
+                    requested_tools=[
+                        observation.tool_call.name
+                        for observation in observations
+                    ],
                 ),
             )
 

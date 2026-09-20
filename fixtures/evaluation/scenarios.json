@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "scenarios": [
+    {
+      "scenario_id": "payment-failure-001",
+      "split": "development",
+      "incident_fixture_path": "fixtures/incidents/payment_failure.json",
+      "expected_root_cause": "payment-service dependency failure",
+      "expected_evidence_ids": ["pf-metric-1", "pf-log-1", "pf-trace-1"],
+      "acceptable_abstention": false,
+      "required_evidence_sources": ["metric", "log", "trace"]
+    },
+    {
+      "scenario_id": "service-latency-001",
+      "split": "development",
+      "incident_fixture_path": "fixtures/incidents/service_latency.json",
+      "expected_root_cause": "payment-service response delay",
+      "expected_evidence_ids": ["sl-metric-1", "sl-log-1", "sl-trace-1"],
+      "acceptable_abstention": true,
+      "required_evidence_sources": ["metric", "log", "trace"]
+    },
+    {
+      "scenario_id": "db-exhaustion-001",
+      "split": "held_out",
+      "incident_fixture_path": "fixtures/incidents/resource_exhaustion.json",
+      "expected_root_cause": "database connection pool exhaustion",
+      "expected_evidence_ids": ["db-metric-1", "db-log-1", "db-metric-2"],
+      "acceptable_abstention": true,
+      "required_evidence_sources": ["metric", "log"]
+    }
+  ]
+}

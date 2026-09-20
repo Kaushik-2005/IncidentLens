@@ -1,18 +1,25 @@
 import asyncio
 from collections.abc import Awaitable, Callable, Mapping
+from time import perf_counter
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from incidentlens.agent_loop import (
+    InvalidModelResponseError,
+    MaxStepsExceededError,
+    ModelBudgetExhaustedError,
+    ModelProviderError,
+    ToolBudgetExhaustedError,
+)
 from incidentlens.contracts import InvestigationReport
 from incidentlens.coordination import (
     FindingInbox,
     InvestigationTask,
     SpecialistFindingMessage,
 )
+from incidentlens.errors import ErrorComponent, IncidentError
 from incidentlens.reliability import CircuitBreaker, CircuitBreakerRegistry
-from incidentlens.errors import IncidentError
-from incidentlens.errors import ErrorComponent
 from incidentlens.specialists import SpecialistRole
 
 BranchStatus = Literal[
@@ -24,9 +31,19 @@ BranchStatus = Literal[
 ]
 ReportStatus = Literal["completed", "inconclusive", "failed"]
 
+class SpecialistWorkerResult(BaseModel):
+    """Findings plus sanitized execution measurements from one specialist worker."""
+
+    findings: list[SpecialistFindingMessage] = Field(default_factory=list)
+    model_calls: int = Field(default=0, ge=0)
+    tool_calls: int = Field(default=0, ge=0)
+    latency_ms: float = Field(default=0, ge=0)
+    requested_tools: list[str] = Field(default_factory=list)
+
+
 Worker = Callable[
     [InvestigationTask],
-    Awaitable[list[SpecialistFindingMessage]],
+    Awaitable[list[SpecialistFindingMessage] | SpecialistWorkerResult],
 ]
 
 
@@ -88,6 +105,10 @@ class SpecialistBranchResult(BaseModel):
     findings: list[SpecialistFindingMessage] = Field(default_factory=list)
     error: str | None = None
     incident_error: IncidentError | None = None
+    model_calls: int = Field(default=0, ge=0)
+    tool_calls: int = Field(default=0, ge=0)
+    latency_ms: float = Field(default=0, ge=0)
+    requested_tools: list[str] = Field(default_factory=list)
 
 
 class InvestigationCoverage(BaseModel):
@@ -143,6 +164,7 @@ async def run_branch(
 
     try:
         async with semaphore:
+            started_at = perf_counter()
             if circuit_breaker is not None and not circuit_breaker.allow_request():
                 return SpecialistBranchResult(
                     role=task.specialist_role,
@@ -160,11 +182,18 @@ async def run_branch(
                     ),
                 )
             try:
-                raw_findings = await asyncio.wait_for(
+                raw_result = await asyncio.wait_for(
                     worker(task),
                     timeout=timeout_seconds,
                 )
-                findings = [SpecialistFindingMessage.model_validate(item) for item in raw_findings]
+                if isinstance(raw_result, SpecialistWorkerResult):
+                    worker_result = raw_result
+                else:
+                    worker_result = SpecialistWorkerResult(findings=raw_result)
+                findings = [
+                    SpecialistFindingMessage.model_validate(item)
+                    for item in worker_result.findings
+                ]
                 if circuit_breaker is not None:
                     circuit_breaker.record_success()
             except TimeoutError:
@@ -182,35 +211,92 @@ async def run_branch(
                         user_message="Telemetry evidence could not be retrieved within the allowed time.",
                     ),
                 )
+            except ModelProviderError as exc:
+                if circuit_breaker is not None:
+                    circuit_breaker.record_failure()
+                incident_error = exc.incident_error or IncidentError.from_message(
+                    classification="service_unavailable",
+                    retryable=exc.retryable,
+                    component=_backend_component(task.specialist_role),
+                    correlation_id=f"branch-{task.task_id}",
+                    user_message="The specialist model service failed during investigation.",
+                )
+                return _failed_branch(
+                    task,
+                    incident_error,
+                    latency_ms=(perf_counter() - started_at) * 1000,
+                )
+            except ModelBudgetExhaustedError as exc:
+                if circuit_breaker is not None:
+                    circuit_breaker.record_failure()
+                return _failed_branch(
+                    task,
+                    exc.incident_error,
+                    latency_ms=(perf_counter() - started_at) * 1000,
+                )
+            except ToolBudgetExhaustedError as exc:
+                if circuit_breaker is not None:
+                    circuit_breaker.record_failure()
+                return _failed_branch(
+                    task,
+                    exc.incident_error,
+                    latency_ms=(perf_counter() - started_at) * 1000,
+                )
+            except InvalidModelResponseError:
+                if circuit_breaker is not None:
+                    circuit_breaker.record_failure()
+                return _failed_branch(
+                    task,
+                    IncidentError.from_message(
+                        classification="model_contract_violation",
+                        retryable=True,
+                        component="model_adapter",
+                        correlation_id=f"branch-{task.task_id}",
+                        user_message="The specialist model returned an invalid response.",
+                    ),
+                    latency_ms=(perf_counter() - started_at) * 1000,
+                )
+            except MaxStepsExceededError:
+                if circuit_breaker is not None:
+                    circuit_breaker.record_failure()
+                return _failed_branch(
+                    task,
+                    IncidentError.from_message(
+                        classification="model_step_limit_exhausted",
+                        retryable=False,
+                        component="coordinator",
+                        correlation_id=f"branch-{task.task_id}",
+                        user_message="The specialist did not produce a valid report within its step limit.",
+                    ),
+                    latency_ms=(perf_counter() - started_at) * 1000,
+                )
             except (RuntimeError, TypeError, ValueError, ValidationError):
                 if circuit_breaker is not None:
                     circuit_breaker.record_failure()
-                return SpecialistBranchResult(
-                    role=task.specialist_role,
-                    status="failed",
-                    error="specialist execution failed",
-                    incident_error=IncidentError.from_message(
+                return _failed_branch(
+                    task,
+                    IncidentError.from_message(
                         classification="service_unavailable",
                         retryable=False,
                         component=_backend_component(task.specialist_role),
                         correlation_id=f"branch-{task.task_id}",
-                        user_message="The specialist dependency failed during investigation.",
+                        user_message="The specialist failed during investigation.",
                     ),
+                    latency_ms=(perf_counter() - started_at) * 1000,
                 )
             except Exception:  # noqa: BLE001 - isolate unexpected worker failures
                 if circuit_breaker is not None:
                     circuit_breaker.record_failure()
-                return SpecialistBranchResult(
-                    role=task.specialist_role,
-                    status="failed",
-                    error="specialist execution failed",
-                    incident_error=IncidentError.from_message(
+                return _failed_branch(
+                    task,
+                    IncidentError.from_message(
                         classification="service_unavailable",
                         retryable=False,
                         component=_backend_component(task.specialist_role),
                         correlation_id=f"branch-{task.task_id}",
-                        user_message="The specialist dependency failed during investigation.",
+                        user_message="The specialist failed during investigation.",
                     ),
+                    latency_ms=(perf_counter() - started_at) * 1000,
                 )
     except asyncio.CancelledError:
         return SpecialistBranchResult(
@@ -223,6 +309,27 @@ async def run_branch(
         role=task.specialist_role,
         status="success",
         findings=findings,
+        model_calls=worker_result.model_calls,
+        tool_calls=worker_result.tool_calls,
+        latency_ms=worker_result.latency_ms,
+        requested_tools=worker_result.requested_tools,
+    )
+
+
+def _failed_branch(
+    task: InvestigationTask,
+    error: IncidentError,
+    *,
+    latency_ms: float = 0,
+) -> SpecialistBranchResult:
+    """Return a branch failure without allowing raw exception text to cross the boundary."""
+    return SpecialistBranchResult(
+        role=task.specialist_role,
+        status="failed",
+        error=error.classification,
+        incident_error=error,
+        model_calls=max(1, error.attempt_count),
+        latency_ms=latency_ms,
     )
 
 

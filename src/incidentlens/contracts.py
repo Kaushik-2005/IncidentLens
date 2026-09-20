@@ -68,7 +68,8 @@ def validate_report_acceptance(report: InvestigationReport) -> InvestigationRepo
         update={
             "status": "inconclusive",
             "summary": (
-                "The report contains hypotheses without sufficient supporting evidence; "
+                "The report contains unresolved evidence requirements and hypotheses without "
+                "sufficient supporting evidence; "
                 "causal conclusions were not promoted. "
                 f"{report.summary}"
             ),

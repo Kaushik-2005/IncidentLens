@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
@@ -162,7 +162,67 @@ def project_agent_fixture(fixture: EvaluatorIncidentFixture) -> AgentIncidentFix
 
 
 def load_agent_fixture(path: str | Path) -> AgentIncidentFixture:
-    return project_agent_fixture(load_evaluator_fixture(path))
+    raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    if "manifest" in raw:
+        return project_agent_fixture(EvaluatorIncidentFixture.model_validate(raw))
+    return _load_legacy_agent_fixture(raw, path)
+
+
+def _load_legacy_agent_fixture(raw: dict[str, Any], path: str | Path) -> AgentIncidentFixture:
+    """Adapt the original evidence-only fixture format at the agent boundary.
+
+    Legacy fixtures have no hidden ground truth, so this compatibility path is
+    safe for agent tools but is intentionally not accepted by the evaluator loader.
+    """
+    incident_id = raw.get("incident_id")
+    evidence = raw.get("evidence")
+    if not isinstance(incident_id, str) or not isinstance(evidence, list):
+        raise TypeError(f"fixture is invalid: {path}")
+    start = datetime(2026, 9, 10, 10, 0, tzinfo=UTC)
+    records: list[TelemetryRecord] = []
+    for index, item in enumerate(evidence):
+        if not isinstance(item, dict):
+            raise TypeError(f"legacy fixture evidence is invalid: {path}")
+        source = item.get("source")
+        record_id = item.get("evidence_id")
+        summary = item.get("summary")
+        if source not in {"log", "metric", "trace"} or not all(
+            isinstance(value, str) and value for value in (record_id, summary)
+        ):
+            raise ValueError(f"legacy fixture evidence is invalid: {path}")
+        timestamp = start + timedelta(seconds=index + 1)
+        records.append(
+            TelemetryRecord(
+                schema_version="legacy-1.0",
+                record_id=record_id,
+                signal_type=source,
+                service_name="checkout-api",
+                timestamp=timestamp,
+                normalized_timestamp=timestamp,
+                trace_id="legacy-trace" if source == "trace" else None,
+                attributes={
+                    "metric_name": record_id if source == "metric" else "legacy"
+                },
+                payload={"message": summary},
+                provenance=TelemetryProvenance(
+                    source_type="legacy_fixture",
+                    source_name=Path(path).stem,
+                    fixture_id=Path(path).stem,
+                    original_record_id=record_id,
+                ),
+            )
+        )
+    return AgentIncidentFixture(
+        manifest=IncidentManifest(
+            schema_version="legacy-1.0",
+            incident_id=incident_id,
+            title="Legacy synthetic incident fixture",
+            time_window=IncidentTimeWindow(start=start, end=start + timedelta(minutes=20)),
+            affected_services=["checkout-api"],
+            telemetry_record_ids=[record.record_id for record in records],
+        ),
+        telemetry=records,
+    )
 
 
 def records_in_window(
