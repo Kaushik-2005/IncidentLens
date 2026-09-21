@@ -276,6 +276,9 @@ def test_aggregate_results_computes_quality_and_efficiency_metrics() -> None:
             tool_calls=3,
             latency_ms=10,
             estimated_cost=0,
+            input_tokens=100,
+            output_tokens=40,
+            total_tokens=140,
             recovery_success=True,
         ),
         EvaluationResult(
@@ -292,6 +295,9 @@ def test_aggregate_results_computes_quality_and_efficiency_metrics() -> None:
             tool_calls=4,
             latency_ms=20,
             estimated_cost=0,
+            input_tokens=300,
+            output_tokens=100,
+            total_tokens=400,
             recovery_success=True,
         ),
     ]
@@ -304,6 +310,9 @@ def test_aggregate_results_computes_quality_and_efficiency_metrics() -> None:
     assert aggregate.unsupported_claim_rate == 0.5
     assert aggregate.mean_tool_calls == 3.5
     assert aggregate.mean_latency_ms == 15
+    assert aggregate.mean_input_tokens == 200
+    assert aggregate.mean_output_tokens == 70
+    assert aggregate.mean_total_tokens == 270
 
 
 def test_run_variant_evaluation_scores_deterministic_runner_on_held_out_split() -> None:

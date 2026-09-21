@@ -2,12 +2,12 @@
 
 ## Current position
 - Roadmap: ../roadmap.md
-- Module: 15 - Evaluation, ablations, observability, and optimization
-- Phase: Review
+- Module: 16 - Productization, live telemetry, and resume-grade capstone
+- Phase: Orient
 - Status: In Progress
 - Mode: Guided Learning
-- Exact current task: execute the development four-variant comparison with the configured model adapter.
-- Last completed evidence: Module 14 completed through reliability/security implementation, final conceptual review, debugging analysis, failure-matrix design, and full validation.
+- Exact current task: inspect the existing workflow boundary and plan the FastAPI investigation lifecycle endpoints.
+- Last completed evidence: Module 15 offline evaluation, human calibration, variant persistence, and token-measurement instrumentation completed; live provider behavior remains a documented limitation.
 
 ## Module progress
 | Module | Title | Implementation | Understanding | Overall |
@@ -26,8 +26,8 @@
 | 12 | Hypothesis formation, critique, and calibrated confidence | Completed | Checked | Completed |
 | 13 | Human oversight, authorization, and safe actions | Completed | Checked | Completed |
 | 14 | Reliability, security, and adversarial behavior | Completed | Checked | Completed |
-| 15 | Evaluation, ablations, observability, and optimization | In progress | Checked | In progress |
-| 16 | Productization, live telemetry, and resume-grade capstone | Not started | Not checked | Not started |
+| 15 | Evaluation, ablations, observability, and optimization | Completed | Checked | Completed |
+| 16 | Productization, live telemetry, and resume-grade capstone | In progress | Not checked | In progress |
 
 ### Module 15 orientation and first knowledge check
 - [x] Explained outcome evaluation versus exact-path/trajectory evaluation.
@@ -41,8 +41,7 @@
 - [x] Added focused evaluation tests; static compilation and diff checks pass.
 - [x] Completed Module 15 final conceptual review and failure-analysis exercise.
 - [x] Explained why evaluator-owned scenarios and agent-visible projections must be separate, including loader/tool enforcement against indirect fixture leakage.
-- Exact next task: execute the development four-variant comparison with the configured model adapter.
-- [ ] Compare deterministic evaluators, rubric-based judges, and human review.
+- [x] Compare deterministic evaluators, rubric-based judgments, and independent human review.
 - [x] Learner explained held-out interpretation, repeated-trial variability, verifier ablation evidence, and completed-but-inconclusive reporting.
 - [x] Added human/judge calibration contracts and disagreement reporting.
 - [x] Executed and persisted the frozen deterministic held-out run for `db-exhaustion-001`.
@@ -51,8 +50,25 @@
 - [x] Executed the development comparison; deterministic completed, single-agent completed with model calls, and both multi-agent variants recorded sanitized `service_unavailable` branch failures.
 - [x] Repeated the development comparison for 3 trials; deterministic remained stable, while multi-agent branch recovery remained 0.0 and single-agent recovery was 0.33.
 - [x] Added and executed `scripts\\run_development_comparison.py --offline --trials 3`; all four variants completed with recovery and trajectory success of 1.0, grounded rate and root-cause accuracy of 1.0, and unsupported-claim rate of 0.0.
-- Exact next task: collect a larger independent human-review sample and rerun a healthy live ablation before making verifier-effect claims.
+- [x] Human calibration artifact contains five independent reviews with 5/5 automated-human agreement.
+- [x] Offline verifier ablation repeated for three trials; result recorded as neutral because the scripted model emits no unsupported claims.
+- [x] Added token measurements to variant execution, specialist branch results, persisted evaluation results, and aggregates.
+- [x] Prevented variant-specific persisted run sets from overwriting one another.
+- [x] Added `scripts\\report_module15.py` for reproducible calibration reporting.
 - [x] Final completion review passed: learner distinguished lifecycle completion from inconclusive diagnosis, deterministic citation/availability checks from semantic causal evaluation, and proposed a scoped `requires_metrics` invariant for rejecting unsupported high-confidence hypotheses.
+
+### Module 15 completion evidence
+- [x] Required concepts learned and explained: outcome versus trajectory evaluation, held-out interpretation, judge calibration, repeated-trial variance, verifier ablation, and completed-but-inconclusive reporting.
+- [x] Evaluation harness implemented for deterministic, single-agent, multi-agent, and no-verifier variants.
+- [x] Development and held-out scenario separation validated; evaluator-only labels are excluded from `AgentScenarioView`.
+- [x] Human calibration artifact: `artifacts/evaluation/human_reviews.json`, five reviews, 5/5 agreement.
+- [x] Offline repeated comparison: three trials for the multi-agent and no-verifier ablation; both were equal on the deterministic scripted workload, so no verifier benefit is claimed.
+- [x] Token instrumentation added to `EvaluationResult`, `EvaluationAggregate`, specialist branches, and persisted run sets.
+- [x] Reproducible reporting command added: `python .\\scripts\\report_module15.py`.
+- [x] Static validation: Python compilation and `git diff --check` passed.
+- [x] Live Gemini failures are recorded as a limitation and excluded from architecture-quality conclusions.
+- Design decision: mark Module 15 complete based on reproducible offline and human-review evidence, while explicitly declining to claim live-model or production performance.
+- Exact next module: Module 16 — productize the workflow behind FastAPI lifecycle endpoints and begin with the create/status/report boundary.
 
 ## Current module completion evidence
 - [x] Required concepts learned from authoritative sources

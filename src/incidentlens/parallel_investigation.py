@@ -39,6 +39,9 @@ class SpecialistWorkerResult(BaseModel):
     tool_calls: int = Field(default=0, ge=0)
     latency_ms: float = Field(default=0, ge=0)
     requested_tools: list[str] = Field(default_factory=list)
+    input_tokens: int | None = Field(default=None, ge=0)
+    output_tokens: int | None = Field(default=None, ge=0)
+    total_tokens: int | None = Field(default=None, ge=0)
 
 
 Worker = Callable[
@@ -109,6 +112,9 @@ class SpecialistBranchResult(BaseModel):
     tool_calls: int = Field(default=0, ge=0)
     latency_ms: float = Field(default=0, ge=0)
     requested_tools: list[str] = Field(default_factory=list)
+    input_tokens: int | None = Field(default=None, ge=0)
+    output_tokens: int | None = Field(default=None, ge=0)
+    total_tokens: int | None = Field(default=None, ge=0)
 
 
 class InvestigationCoverage(BaseModel):
@@ -313,6 +319,9 @@ async def run_branch(
         tool_calls=worker_result.tool_calls,
         latency_ms=worker_result.latency_ms,
         requested_tools=worker_result.requested_tools,
+        input_tokens=worker_result.input_tokens,
+        output_tokens=worker_result.output_tokens,
+        total_tokens=worker_result.total_tokens,
     )
 
 

@@ -181,6 +181,9 @@ class EvaluationResult(BaseModel):
     tool_calls: int = Field(ge=0)
     latency_ms: float = Field(ge=0)
     estimated_cost: float = Field(default=0, ge=0)
+    input_tokens: int | None = Field(default=None, ge=0)
+    output_tokens: int | None = Field(default=None, ge=0)
+    total_tokens: int | None = Field(default=None, ge=0)
     recovery_success: bool
     trajectory_valid: bool = True
     unauthorized_tool_requests: int = Field(default=0, ge=0)
@@ -201,6 +204,9 @@ class EvaluationAggregate(BaseModel):
     mean_tool_calls: float = Field(ge=0)
     mean_latency_ms: float = Field(ge=0)
     total_estimated_cost: float = Field(ge=0)
+    mean_input_tokens: float = Field(default=0, ge=0)
+    mean_output_tokens: float = Field(default=0, ge=0)
+    mean_total_tokens: float = Field(default=0, ge=0)
     recovery_rate: float = Field(ge=0, le=1)
     trajectory_success_rate: float = Field(default=0, ge=0, le=1)
     mean_unauthorized_tool_requests: float = Field(default=0, ge=0)
@@ -290,6 +296,12 @@ class RepeatedVariantSummary(BaseModel):
     mean_tool_calls_stddev: float = Field(ge=0)
     total_estimated_cost_mean: float = Field(ge=0)
     total_estimated_cost_stddev: float = Field(ge=0)
+    mean_input_tokens_mean: float = Field(default=0, ge=0)
+    mean_input_tokens_stddev: float = Field(default=0, ge=0)
+    mean_output_tokens_mean: float = Field(default=0, ge=0)
+    mean_output_tokens_stddev: float = Field(default=0, ge=0)
+    mean_total_tokens_mean: float = Field(default=0, ge=0)
+    mean_total_tokens_stddev: float = Field(default=0, ge=0)
     recovery_rate_mean: float = Field(ge=0, le=1)
     recovery_rate_stddev: float = Field(ge=0)
     trajectory_success_rate_mean: float = Field(ge=0, le=1)
@@ -485,6 +497,9 @@ def aggregate_repeated_runs(
         model_mean, model_std = pair(variant, "mean_model_calls")
         tool_mean, tool_std = pair(variant, "mean_tool_calls")
         cost_mean, cost_std = pair(variant, "total_estimated_cost")
+        input_tokens_mean, input_tokens_std = pair(variant, "mean_input_tokens")
+        output_tokens_mean, output_tokens_std = pair(variant, "mean_output_tokens")
+        total_tokens_mean, total_tokens_std = pair(variant, "mean_total_tokens")
         recovery_mean, recovery_std = pair(variant, "recovery_rate")
         trajectory_mean, trajectory_std = pair(variant, "trajectory_success_rate")
         summaries[variant] = RepeatedVariantSummary(
@@ -505,6 +520,12 @@ def aggregate_repeated_runs(
             mean_tool_calls_stddev=tool_std,
             total_estimated_cost_mean=cost_mean,
             total_estimated_cost_stddev=cost_std,
+            mean_input_tokens_mean=input_tokens_mean,
+            mean_input_tokens_stddev=input_tokens_std,
+            mean_output_tokens_mean=output_tokens_mean,
+            mean_output_tokens_stddev=output_tokens_std,
+            mean_total_tokens_mean=total_tokens_mean,
+            mean_total_tokens_stddev=total_tokens_std,
             recovery_rate_mean=recovery_mean,
             recovery_rate_stddev=recovery_std,
             trajectory_success_rate_mean=trajectory_mean,
@@ -533,6 +554,9 @@ class VariantExecution(BaseModel):
     tool_calls: int = Field(default=0, ge=0)
     latency_ms: float = Field(default=0, ge=0)
     estimated_cost: float = Field(default=0, ge=0)
+    input_tokens: int | None = Field(default=None, ge=0)
+    output_tokens: int | None = Field(default=None, ge=0)
+    total_tokens: int | None = Field(default=None, ge=0)
     recovery_success: bool = True
     trajectory: TrajectoryTrace = Field(default_factory=TrajectoryTrace)
 
@@ -685,6 +709,9 @@ class SingleAgentRunner:
             model_calls=result.metadata.model_calls,
             tool_calls=result.metadata.tool_calls,
             latency_ms=result.metadata.elapsed_ms,
+            input_tokens=result.metadata.input_tokens,
+            output_tokens=result.metadata.output_tokens,
+            total_tokens=result.metadata.total_tokens,
             trajectory=TrajectoryTrace(
                 allowed_tools=frozenset(tools.tool_names),
                 requested_tools=model.requested_tools,
@@ -826,6 +853,9 @@ class MultiAgentRunner:
             model_calls=sum(branch.model_calls for branch in branches),
             tool_calls=sum(branch.tool_calls for branch in branches),
             latency_ms=max((branch.latency_ms for branch in branches), default=0),
+            input_tokens=_sum_optional(branch.input_tokens for branch in branches),
+            output_tokens=_sum_optional(branch.output_tokens for branch in branches),
+            total_tokens=_sum_optional(branch.total_tokens for branch in branches),
             recovery_success=successful,
             trajectory=TrajectoryTrace(
                 allowed_tools=allowed_tools,
@@ -1115,6 +1145,9 @@ def evaluate_execution(
         tool_calls=execution.tool_calls,
         latency_ms=execution.latency_ms,
         estimated_cost=execution.estimated_cost,
+        input_tokens=execution.input_tokens,
+        output_tokens=execution.output_tokens,
+        total_tokens=execution.total_tokens,
         recovery_success=execution.recovery_success,
         trajectory_valid=check_trajectory(execution.trajectory),
         unauthorized_tool_requests=unauthorized_tool_requests,
@@ -1140,6 +1173,9 @@ def aggregate_results(results: Iterable[EvaluationResult]) -> EvaluationAggregat
             mean_tool_calls=0,
             mean_latency_ms=0,
             total_estimated_cost=0,
+            mean_input_tokens=0,
+            mean_output_tokens=0,
+            mean_total_tokens=0,
             recovery_rate=0,
             trajectory_success_rate=0,
             mean_unauthorized_tool_requests=0,
@@ -1161,6 +1197,9 @@ def aggregate_results(results: Iterable[EvaluationResult]) -> EvaluationAggregat
         mean_tool_calls=sum(item.tool_calls for item in values) / count,
         mean_latency_ms=sum(item.latency_ms for item in values) / count,
         total_estimated_cost=sum(item.estimated_cost for item in values),
+        mean_input_tokens=_mean_optional(item.input_tokens for item in values),
+        mean_output_tokens=_mean_optional(item.output_tokens for item in values),
+        mean_total_tokens=_mean_optional(item.total_tokens for item in values),
         recovery_rate=rate(lambda item: item.recovery_success),
         trajectory_success_rate=rate(lambda item: item.trajectory_valid),
         mean_unauthorized_tool_requests=sum(
@@ -1172,6 +1211,16 @@ def aggregate_results(results: Iterable[EvaluationResult]) -> EvaluationAggregat
 
 
 VariantRunner = Callable[[EvaluationScenario, AgentScenarioView], VariantExecution]
+
+
+def _mean_optional(values: Iterable[int | None]) -> float:
+    known = [value for value in values if value is not None]
+    return sum(known) / len(known) if known else 0
+
+
+def _sum_optional(values: Iterable[int | None]) -> int | None:
+    known = [value for value in values if value is not None]
+    return sum(known) if known else None
 
 
 class VariantRunnerAdapter:

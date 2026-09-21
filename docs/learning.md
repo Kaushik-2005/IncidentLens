@@ -810,3 +810,12 @@ The learner correctly explained that tool order is a trajectory property while g
 In the final failure-analysis exercise, the learner correctly classified Metrics circuit-open plus Logs/Traces success as lifecycle `COMPLETED` with diagnostic `insufficient_evidence`. They separated deterministic citation and availability checks from LLM semantic causal evaluation. Their proposed invariant rejects a supported or high-confidence hypothesis only when `requires_metrics=true` and Metrics is unavailable, preserving valid completed-but-inconclusive reports.
 
 Module 15 remains implementation-incomplete because a real rubric-based LLM judge comparison and explicit token/cost estimation are not yet implemented; the offline scripted comparison is intentionally only a reproducibility and plumbing result.
+### Module 15 completion review
+Module 15 is complete for the reproducible evaluation scope. The evaluator separates deterministic citation and trajectory checks from semantic judgment, keeps evaluator-only ground truth outside `AgentScenarioView`, and treats failed model executions as recovery failures rather than vacuously grounded reports. The held-out artifact remains limited evidence: one scenario cannot establish broad generalization.
+
+The five-review calibration artifact records 5/5 agreement between automated judgments and independent human judgments. The three-trial offline verifier ablation produced equivalent results for the scripted workload, so it demonstrates comparable plumbing rather than verifier benefit. Token measurements now propagate through variant execution, specialist branches, evaluation results, and aggregate artifacts. Live Gemini failures remain a provider-health limitation and are not used to claim architecture quality.
+
+The exact reproducible checks are `python .\\scripts\\report_module15.py`, `python -m py_compile ...`, `python -m pytest -q`, `python -m ruff check .`, and `python -m ruff format --check .`. The first command reports calibration; the remaining dependency-enabled checks must be run in the project environment when available.
+
+### Module 16 entry point
+Module 16 begins at the application boundary: define the investigation job lifecycle and expose create, status, report, approve, and cancel operations without weakening the existing authorization, checkpoint, evidence, and report-validation boundaries.

@@ -89,6 +89,9 @@ def build_model_backed_worker(
             tool_calls=result.metadata.tool_calls,
             latency_ms=result.metadata.elapsed_ms,
             requested_tools=result.metadata.requested_tools,
+            input_tokens=result.metadata.input_tokens,
+            output_tokens=result.metadata.output_tokens,
+            total_tokens=result.metadata.total_tokens,
         )
 
     return worker

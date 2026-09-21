@@ -1120,3 +1120,18 @@ The development comparison retains provider-neutral `--variant` filtering and de
 
 #### Verification and known limitations
 Offline comparisons remain the reproducible evidence for evaluation plumbing. Live Gemini quality and verifier-effect claims require healthy repeated trials, held-out scenarios, and explicit token/cost instrumentation.
+
+### Module 15 completion review
+- Status: Completed
+
+#### Design change
+Evaluation now persists provider-neutral token measurements from model-backed single-agent and specialist execution through `VariantExecution`, branch results, `EvaluationResult`, and aggregate metrics. Variant-specific run-set IDs prevent isolated comparisons from overwriting prior evidence. `scripts/report_module15.py` provides a reproducible human/judge calibration summary.
+
+#### Verification and evidence
+`artifacts/evaluation/human_reviews.json` contains five independent reviews with 5/5 agreement. Offline multi-agent and no-verifier comparisons were repeated for three trials and produced a neutral result for the deterministic scripted workload. Python compilation and `git diff --check` passed. Live Gemini failures remain explicitly excluded from quality conclusions.
+
+#### Known limitations after this module
+The evaluation set is small, the scripted model does not test semantic verifier value, and healthy live-model performance remains unverified. Module 16 must preserve these limitations in the product demo and documentation.
+
+#### Next design step
+Expose the existing investigation workflow through a bounded FastAPI job lifecycle, beginning with create/status/report endpoints and preserving cancellation and recovery semantics.

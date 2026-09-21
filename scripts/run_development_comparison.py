@@ -32,7 +32,6 @@ from incidentlens.specialist_runtime import build_model_backed_worker
 from incidentlens.specialists import SpecialistRole, build_role_tool_registry
 from incidentlens.telemetry import load_agent_fixture
 
-
 VARIANTS = (
     "deterministic",
     "single_agent",
@@ -214,12 +213,47 @@ def main() -> None:
         runner_factory=runner_factory,
         trials=args.trials,
         store=store,
-        run_set_id_prefix="development-comparison",
+        run_set_id_prefix=(
+            f"development-comparison-{args.variant}-{'offline' if args.offline else 'live'}"
+        ),
     )
     summaries = aggregate_repeated_runs(run_sets)
+    comparison = None
+    if args.variant == "all":
+        comparison = {
+            "multi_agent_vs_without_verifier": {
+                "unsupported_claim_rate_delta": (
+                    summaries["multi_agent_without_verifier"].unsupported_claim_rate_mean
+                    - summaries["multi_agent"].unsupported_claim_rate_mean
+                ),
+                "abstention_quality_delta": (
+                    summaries["multi_agent_without_verifier"].abstention_quality_mean
+                    - summaries["multi_agent"].abstention_quality_mean
+                ),
+                "mean_latency_ms_delta": (
+                    summaries["multi_agent_without_verifier"].mean_latency_ms_mean
+                    - summaries["multi_agent"].mean_latency_ms_mean
+                ),
+                "mean_model_calls_delta": (
+                    summaries["multi_agent_without_verifier"].mean_model_calls_mean
+                    - summaries["multi_agent"].mean_model_calls_mean
+                ),
+                "mean_total_tokens_delta": (
+                    summaries["multi_agent_without_verifier"].mean_total_tokens_mean
+                    - summaries["multi_agent"].mean_total_tokens_mean
+                ),
+                "estimated_cost_delta": (
+                    summaries["multi_agent_without_verifier"].total_estimated_cost_mean
+                    - summaries["multi_agent"].total_estimated_cost_mean
+                ),
+            }
+        }
+    output = {variant: summary.model_dump(mode="json") for variant, summary in summaries.items()}
+    if comparison is not None:
+        output["ablation_comparison"] = comparison
     print(
         json.dumps(
-            {variant: summary.model_dump(mode="json") for variant, summary in summaries.items()},
+            output,
             indent=2,
             sort_keys=True,
         )
